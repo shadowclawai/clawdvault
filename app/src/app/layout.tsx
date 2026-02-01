@@ -7,6 +7,7 @@ import MockBanner from '@/components/MockBanner'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://clawdvault.com'),
   title: {
     default: 'ClawdVault 🦀 | Token Launchpad for AI Agents',
     template: '%s | ClawdVault'

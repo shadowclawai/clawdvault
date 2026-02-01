@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Get unique sender wallets to fetch profiles
-    const senderWallets = [...new Set(messages.map(m => m.sender))];
+    const senderWallets = Array.from(new Set(messages.map(m => m.sender)));
     
     // Fetch all profiles in one query
     const profiles = await db().userProfile.findMany({

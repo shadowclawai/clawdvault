@@ -175,6 +175,7 @@ export async function getTokenTrades(mint: string, limit = 50): Promise<Trade[]>
 
 // Create token
 export async function createToken(data: {
+  mint?: string;  // Optional: use this if provided (for on-chain tokens)
   name: string;
   symbol: string;
   description?: string;
@@ -185,7 +186,7 @@ export async function createToken(data: {
   telegram?: string;
   website?: string;
 }): Promise<Token | null> {
-  const mint = generateMint();
+  const mint = data.mint || generateMint(); // Use provided mint or generate mock one
   
   try {
     const token = await db().token.create({

@@ -76,6 +76,8 @@ export interface CreateTokenRequest {
   telegram?: string;
   website?: string;
   initialBuy?: number;  // SOL amount to buy at launch
+  creator?: string;     // Creator wallet address
+  creatorName?: string; // Display name for creator
 }
 
 export interface CreateTokenResponse {
@@ -84,6 +86,7 @@ export interface CreateTokenResponse {
   mint?: string;
   signature?: string;
   error?: string;
+  onChain?: boolean;  // True if token was created on real Solana network
 }
 
 export interface TradeRequest {

@@ -14,6 +14,7 @@ export async function GET() {
   
   // Return cached price if still valid
   if (age < CACHE_DURATION && cachedPrice !== null) {
+    console.log(`[SOL Price] Returning cached: $${cachedPrice?.toFixed(2)} (age: ${Math.floor(age / 1000)}s)`);
     return NextResponse.json({ 
       price: cachedPrice, 
       valid: true,
@@ -23,6 +24,7 @@ export async function GET() {
   }
 
   // Fetch fresh price
+  console.log('[SOL Price] Cache expired, fetching from Jupiter...');
   try {
     const res = await fetch('https://price.jup.ag/v6/price?ids=SOL', {
       next: { revalidate: 60 }
@@ -32,6 +34,7 @@ export async function GET() {
     if (data.data?.SOL?.price) {
       cachedPrice = data.data.SOL.price;
       lastFetch = now;
+      console.log(`[SOL Price] Fresh fetch: $${cachedPrice.toFixed(2)}`);
       return NextResponse.json({ 
         price: cachedPrice, 
         valid: true,
@@ -39,12 +42,14 @@ export async function GET() {
         age: 0
       });
     }
+    console.warn('[SOL Price] Jupiter response missing price data:', data);
   } catch (err) {
-    console.error('Failed to fetch SOL price:', err);
+    console.error('[SOL Price] Fetch failed:', err);
   }
 
   // If we have a recent-ish cached price, use it but mark as potentially stale
   if (cachedPrice !== null && age < STALE_DURATION) {
+    console.log(`[SOL Price] Using stale cache: $${cachedPrice?.toFixed(2)} (age: ${Math.floor(age / 1000)}s)`);
     return NextResponse.json({ 
       price: cachedPrice, 
       valid: true,
@@ -55,6 +60,7 @@ export async function GET() {
   }
 
   // No valid price available
+  console.warn('[SOL Price] No valid price available, returning null');
   return NextResponse.json({ 
     price: null, 
     valid: false,

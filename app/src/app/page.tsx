@@ -19,34 +19,34 @@ async function getHomeData() {
     
     // Get total volume from trades
     const volumeResult = await db().trade.aggregate({
-      _sum: { sol_amount: true }
+      _sum: { solAmount: true }
     })
-    const totalVolume = volumeResult._sum.sol_amount || 0
+    const totalVolume = volumeResult._sum.solAmount || 0
     
     // Get king of the hill (highest market cap)
     const kingToken = await db().token.findFirst({
       where: { graduated: false },
-      orderBy: { market_cap_sol: 'desc' }
+      orderBy: { marketCapSol: 'desc' }
     })
     
     // Get recent tokens (last 6)
     const recentTokens = await db().token.findMany({
-      orderBy: { created_at: 'desc' },
+      orderBy: { createdAt: 'desc' },
       take: 6
     })
     
     // Get trending tokens (most volume in last 24h)
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
     const trendingTrades = await db().trade.groupBy({
-      by: ['token_mint'],
-      where: { created_at: { gte: oneDayAgo } },
-      _sum: { sol_amount: true },
-      orderBy: { _sum: { sol_amount: 'desc' } },
+      by: ['tokenMint'],
+      where: { createdAt: { gte: oneDayAgo } },
+      _sum: { solAmount: true },
+      orderBy: { _sum: { solAmount: 'desc' } },
       take: 6
     })
     
     // Fetch the trending tokens
-    const trendingMints = trendingTrades.map(t => t.token_mint)
+    const trendingMints = trendingTrades.map(t => t.tokenMint)
     const trendingTokens = trendingMints.length > 0 
       ? await db().token.findMany({
           where: { mint: { in: trendingMints } }
@@ -56,8 +56,8 @@ async function getHomeData() {
     // Sort trending tokens by their trade volume
     const trendingWithVolume = trendingTokens.map(token => ({
       ...token,
-      volume_24h: trendingTrades.find(t => t.token_mint === token.mint)?._sum.sol_amount || 0
-    })).sort((a, b) => (b.volume_24h || 0) - (a.volume_24h || 0))
+      volume24h: trendingTrades.find(t => t.tokenMint === token.mint)?._sum.solAmount || 0
+    })).sort((a, b) => (b.volume24h || 0) - (a.volume24h || 0))
     
     return {
       totalTokens,
@@ -117,7 +117,7 @@ function TokenCard({ token, badge }: { token: any, badge?: string }) {
         </div>
         <div className="text-right">
           <div className="text-green-400 text-sm font-medium">
-            {formatNumber(token.market_cap_sol)} SOL
+            {formatNumber(token.marketCapSol)} SOL
           </div>
           <div className="text-gray-500 text-xs">mcap</div>
         </div>
@@ -229,7 +229,7 @@ export default async function Home() {
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-bold text-yellow-400">
-                    {formatNumber(data.kingToken.market_cap_sol)} SOL
+                    {formatNumber(data.kingToken.marketCapSol)} SOL
                   </div>
                   <div className="text-gray-500 text-sm">Market Cap</div>
                 </div>

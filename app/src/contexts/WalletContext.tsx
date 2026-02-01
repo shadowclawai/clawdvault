@@ -76,12 +76,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Determine RPC based on network (devnet or mainnet)
+    const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'mainnet-beta';
+    const isDevnet = network === 'devnet';
+    
     // Try multiple RPCs in case of rate limiting
-    // Note: Most "free" RPCs now require API keys, official endpoint is actually most reliable
     const rpcUrls = [
       process.env.NEXT_PUBLIC_RPC_URL,
-      'https://api.mainnet-beta.solana.com',            // Official - works well for low volume
-      'https://solana-rpc.publicnode.com',              // PublicNode free tier
+      isDevnet ? 'https://api.devnet.solana.com' : 'https://api.mainnet-beta.solana.com',
+      isDevnet ? null : 'https://solana-rpc.publicnode.com', // PublicNode only has mainnet
     ].filter(Boolean) as string[];
 
     console.log(`[Wallet] Fetching balance for: ${publicKey}`);

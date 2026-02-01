@@ -8,6 +8,7 @@ import Footer from '@/components/Footer';
 import { useWallet } from '@/contexts/WalletContext';
 
 export default function CreatePage() {
+  const { connected, publicKey, connect } = useWallet();
   const [name, setName] = useState('');
   const [symbol, setSymbol] = useState('');
   const [description, setDescription] = useState('');
@@ -125,8 +126,14 @@ export default function CreatePage() {
 
       const res = await fetch('/api/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(publicKey ? { 'X-Wallet': publicKey } : {}),
+        },
+        body: JSON.stringify({
+          ...body,
+          creator: publicKey || undefined,
+        }),
       });
 
       const data: CreateTokenResponse = await res.json();
@@ -433,13 +440,26 @@ export default function CreatePage() {
                 </ul>
               </div>
 
-              <button
-                type="submit"
-                disabled={loading || uploading || !name || !symbol}
-                className="w-full bg-gradient-to-r from-orange-600 to-red-500 hover:from-orange-500 hover:to-red-400 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-xl font-semibold transition"
-              >
-                {loading ? 'Creating...' : uploading ? 'Uploading image...' : 'Launch Token 🚀'}
-              </button>
+              {connected ? (
+                <button
+                  type="submit"
+                  disabled={loading || uploading || !name || !symbol}
+                  className="w-full bg-gradient-to-r from-orange-600 to-red-500 hover:from-orange-500 hover:to-red-400 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-xl font-semibold transition"
+                >
+                  {loading ? 'Creating...' : uploading ? 'Uploading image...' : 'Launch Token 🚀'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={connect}
+                  className="w-full bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white py-4 rounded-xl font-semibold transition flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 200 180" fill="none">
+                    <path fillRule="evenodd" clipRule="evenodd" d="M89.1138 112.613C83.1715 121.719 73.2139 133.243 59.9641 133.243C53.7005 133.243 47.6777 130.665 47.6775 119.464C47.677 90.9369 86.6235 46.777 122.76 46.7764C143.317 46.776 151.509 61.0389 151.509 77.2361C151.509 98.0264 138.018 121.799 124.608 121.799C120.352 121.799 118.264 119.462 118.264 115.756C118.264 114.789 118.424 113.741 118.746 112.613C114.168 120.429 105.335 127.683 97.0638 127.683C91.0411 127.683 87.9898 123.895 87.9897 118.576C87.9897 116.642 88.3912 114.628 89.1138 112.613ZM115.936 68.7103C112.665 68.7161 110.435 71.4952 110.442 75.4598C110.449 79.4244 112.689 82.275 115.96 82.2693C119.152 82.2636 121.381 79.4052 121.374 75.4405C121.367 71.4759 119.128 68.7047 115.936 68.7103ZM133.287 68.6914C130.016 68.6972 127.786 71.4763 127.793 75.4409C127.8 79.4055 130.039 82.2561 133.311 82.2504C136.503 82.2448 138.732 79.3863 138.725 75.4216C138.718 71.457 136.479 68.6858 133.287 68.6914Z" fill="currentColor"/>
+                  </svg>
+                  Connect Wallet to Launch
+                </button>
+              )}
             </form>
           )}
         </div>

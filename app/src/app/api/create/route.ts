@@ -60,6 +60,23 @@ export async function POST(request: Request) {
     console.log(`Creating token: ${body.name} (${body.symbol}) for ${creator}`);
     console.log(`Mode: ${isMockMode() ? 'MOCK' : 'ON-CHAIN'}`);
     
+    // Validate creator wallet for on-chain mode
+    const isOnChain = !isMockMode();
+    if (isOnChain) {
+      // Check if creator is a valid Solana public key (base58, 32-44 chars)
+      const isValidPubkey = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(creator);
+      if (!isValidPubkey || creator === 'anonymous') {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'Wallet connection required. Connect your Phantom wallet to create tokens.',
+            requiresWallet: true 
+          },
+          { status: 400 }
+        );
+      }
+    }
+    
     let onChainResult;
     try {
       onChainResult = await createTokenOnChain({
@@ -72,7 +89,7 @@ export async function POST(request: Request) {
     } catch (error) {
       console.error('On-chain creation failed:', error);
       return NextResponse.json(
-        { success: false, error: 'Failed to create token on-chain' },
+        { success: false, error: 'Failed to create token on-chain. Please try again.' },
         { status: 500 }
       );
     }

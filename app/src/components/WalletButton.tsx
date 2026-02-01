@@ -4,18 +4,11 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useWallet } from '@/contexts/WalletContext';
 import { authenticatedPost } from '@/lib/signRequest';
 
-// Official Phantom logo SVG (simplified)
+// Official Phantom ghost logo
 function PhantomIcon({ className = "w-5 h-5" }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="128" height="128" rx="26" fill="url(#phantom-grad)"/>
-      <path fillRule="evenodd" clipRule="evenodd" d="M97.6 52.4C97.6 67.5 85.4 79.7 70.3 79.7H57.1C56.2 79.7 55.4 80.3 55.2 81.2L52.5 94.9C52.3 95.8 51.5 96.4 50.6 96.4H39.6C38.5 96.4 37.7 95.4 37.9 94.3L49.3 35.1C49.5 34.2 50.3 33.6 51.2 33.6H74C86.1 33.6 97.6 41.6 97.6 52.4ZM70.9 48.3H63.7C62.8 48.3 62 48.9 61.8 49.8L59.1 63.5C58.9 64.4 59.7 65.2 60.6 65.2H66.9C73.2 65.2 78.3 60.1 78.3 53.8C78.3 50.1 75.1 48.3 70.9 48.3Z" fill="white"/>
-      <defs>
-        <linearGradient id="phantom-grad" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#534BB1"/>
-          <stop offset="1" stopColor="#551BF9"/>
-        </linearGradient>
-      </defs>
+    <svg className={className} viewBox="0 0 200 180" fill="none">
+      <path fillRule="evenodd" clipRule="evenodd" d="M89.1138 112.613C83.1715 121.719 73.2139 133.243 59.9641 133.243C53.7005 133.243 47.6777 130.665 47.6775 119.464C47.677 90.9369 86.6235 46.777 122.76 46.7764C143.317 46.776 151.509 61.0389 151.509 77.2361C151.509 98.0264 138.018 121.799 124.608 121.799C120.352 121.799 118.264 119.462 118.264 115.756C118.264 114.789 118.424 113.741 118.746 112.613C114.168 120.429 105.335 127.683 97.0638 127.683C91.0411 127.683 87.9898 123.895 87.9897 118.576C87.9897 116.642 88.3912 114.628 89.1138 112.613ZM115.936 68.7103C112.665 68.7161 110.435 71.4952 110.442 75.4598C110.449 79.4244 112.689 82.275 115.96 82.2693C119.152 82.2636 121.381 79.4052 121.374 75.4405C121.367 71.4759 119.128 68.7047 115.936 68.7103ZM133.287 68.6914C130.016 68.6972 127.786 71.4763 127.793 75.4409C127.8 79.4055 130.039 82.2561 133.311 82.2504C136.503 82.2448 138.732 79.3863 138.725 75.4216C138.718 71.457 136.479 68.6858 133.287 68.6914Z" fill="currentColor"/>
     </svg>
   );
 }

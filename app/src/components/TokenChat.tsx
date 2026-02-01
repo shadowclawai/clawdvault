@@ -163,22 +163,32 @@ export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
     }
   };
 
-  // Toggle reaction
+  // Get user's current reaction on a message
+  const getUserReaction = (msg: ChatMessage): string | null => {
+    if (!publicKey) return null;
+    for (const [emoji, data] of Object.entries(msg.reactions)) {
+      if (data.wallets.includes(publicKey)) return emoji;
+    }
+    return null;
+  };
+
+  // Toggle reaction - only one per user per message
   const toggleReaction = async (messageId: string, emoji: string) => {
     if (!connected || !publicKey) return;
 
     const message = messages.find(m => m.id === messageId);
     if (!message) return;
 
-    const hasReacted = message.reactions[emoji]?.wallets.includes(publicKey);
+    const currentReaction = getUserReaction(message);
+    const isSameEmoji = currentReaction === emoji;
 
     try {
-      if (hasReacted) {
-        // Remove reaction
+      // If clicking same emoji, remove it
+      if (isSameEmoji) {
         await fetch(`/api/reactions?messageId=${messageId}&emoji=${encodeURIComponent(emoji)}&wallet=${publicKey}`, {
           method: 'DELETE',
         });
-        // Update local state
+        // Update local state - remove reaction
         setMessages(prev => prev.map(m => {
           if (m.id !== messageId) return m;
           const newReactions = { ...m.reactions };
@@ -194,16 +204,33 @@ export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
           return { ...m, reactions: newReactions };
         }));
       } else {
-        // Add reaction
+        // Remove old reaction first if exists
+        if (currentReaction) {
+          await fetch(`/api/reactions?messageId=${messageId}&emoji=${encodeURIComponent(currentReaction)}&wallet=${publicKey}`, {
+            method: 'DELETE',
+          });
+        }
+        // Add new reaction
         await fetch('/api/reactions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ messageId, emoji, wallet: publicKey }),
         });
-        // Update local state
+        // Update local state - swap reactions
         setMessages(prev => prev.map(m => {
           if (m.id !== messageId) return m;
           const newReactions = { ...m.reactions };
+          // Remove old reaction if exists
+          if (currentReaction && newReactions[currentReaction]) {
+            newReactions[currentReaction] = {
+              count: newReactions[currentReaction].count - 1,
+              wallets: newReactions[currentReaction].wallets.filter(w => w !== publicKey),
+            };
+            if (newReactions[currentReaction].count === 0) {
+              delete newReactions[currentReaction];
+            }
+          }
+          // Add new reaction
           if (newReactions[emoji]) {
             newReactions[emoji] = {
               count: newReactions[emoji].count + 1,
@@ -375,18 +402,30 @@ export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
                             picker?.classList.toggle('hidden');
                           }}
                         >
-                          +
+                          {getUserReaction(msg) || '+'}
                         </button>
-                        <div className="hidden absolute left-0 bottom-full mb-1 bg-gray-800 border border-gray-700 rounded-lg p-1 flex gap-1 z-10">
-                          {EMOJI_OPTIONS.map(emoji => (
-                            <button
-                              key={emoji}
-                              onClick={() => toggleReaction(msg.id, emoji)}
-                              className="hover:bg-gray-700 p-1 rounded transition"
-                            >
-                              {emoji}
-                            </button>
-                          ))}
+                        <div className="hidden absolute left-0 bottom-full mb-1 bg-gray-800 border border-gray-700 rounded-lg p-1 flex gap-1 z-10 shadow-lg">
+                          {EMOJI_OPTIONS.map(emoji => {
+                            const isSelected = getUserReaction(msg) === emoji;
+                            return (
+                              <button
+                                key={emoji}
+                                onClick={(e) => {
+                                  toggleReaction(msg.id, emoji);
+                                  // Close picker
+                                  e.currentTarget.parentElement?.classList.add('hidden');
+                                }}
+                                className={`p-1.5 rounded transition ${
+                                  isSelected 
+                                    ? 'bg-orange-500/30 ring-1 ring-orange-500' 
+                                    : 'hover:bg-gray-700'
+                                }`}
+                                title={isSelected ? 'Click to remove' : 'Click to react'}
+                              >
+                                {emoji}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                     )}

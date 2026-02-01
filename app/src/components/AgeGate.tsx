@@ -91,7 +91,10 @@ export default function AgeGate({ children }: { children: React.ReactNode }) {
           </div>
 
           <p className="text-center text-gray-600 text-xs mt-4">
-            By entering, you agree to our terms of service
+            By entering, you agree to our{' '}
+            <a href="/terms" className="text-orange-400 hover:text-orange-300 underline">
+              Terms of Service
+            </a>
           </p>
         </div>
       </div>

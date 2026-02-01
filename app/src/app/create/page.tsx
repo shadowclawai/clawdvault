@@ -10,6 +10,9 @@ export default function CreatePage() {
   const [description, setDescription] = useState('');
   const [image, setImage] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [twitter, setTwitter] = useState('');
+  const [telegram, setTelegram] = useState('');
+  const [website, setWebsite] = useState('');
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<CreateTokenResponse | null>(null);
@@ -110,6 +113,9 @@ export default function CreatePage() {
         symbol,
         description: description || undefined,
         image: image || undefined,
+        twitter: twitter || undefined,
+        telegram: telegram || undefined,
+        website: website || undefined,
       };
 
       const res = await fetch('/api/create', {
@@ -185,6 +191,9 @@ export default function CreatePage() {
                     setDescription('');
                     setImage('');
                     setImagePreview(null);
+                    setTwitter('');
+                    setTelegram('');
+                    setWebsite('');
                   }}
                   className="border border-gray-600 hover:border-orange-500 text-white px-6 py-2 rounded-lg transition"
                 >
@@ -315,6 +324,57 @@ export default function CreatePage() {
                     placeholder="https://..."
                     className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none text-sm"
                   />
+                </div>
+              </div>
+
+              {/* Social Links */}
+              <div className="space-y-4">
+                <label className="block text-white font-medium">
+                  Social Links <span className="text-gray-500 font-normal">(optional)</span>
+                </label>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 text-gray-400 text-sm mb-1">
+                      <span>𝕏</span>
+                      <span>Twitter</span>
+                    </div>
+                    <input
+                      type="text"
+                      value={twitter}
+                      onChange={(e) => setTwitter(e.target.value)}
+                      placeholder="@username or URL"
+                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none text-sm"
+                    />
+                  </div>
+                  
+                  <div>
+                    <div className="flex items-center gap-2 text-gray-400 text-sm mb-1">
+                      <span>✈️</span>
+                      <span>Telegram</span>
+                    </div>
+                    <input
+                      type="text"
+                      value={telegram}
+                      onChange={(e) => setTelegram(e.target.value)}
+                      placeholder="@group or URL"
+                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none text-sm"
+                    />
+                  </div>
+                  
+                  <div>
+                    <div className="flex items-center gap-2 text-gray-400 text-sm mb-1">
+                      <span>🌐</span>
+                      <span>Website</span>
+                    </div>
+                    <input
+                      type="text"
+                      value={website}
+                      onChange={(e) => setWebsite(e.target.value)}
+                      placeholder="example.com"
+                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none text-sm"
+                    />
+                  </div>
                 </div>
               </div>
 

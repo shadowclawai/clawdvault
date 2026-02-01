@@ -27,6 +27,11 @@ export interface Token {
   graduated: boolean;
   raydium_pool?: string;
   
+  // Social links
+  twitter?: string;
+  telegram?: string;
+  website?: string;
+  
   // Stats
   volume_24h?: number;
   trades_24h?: number;

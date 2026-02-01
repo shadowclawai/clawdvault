@@ -200,6 +200,45 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
               {token.description && (
                 <p className="text-gray-400 mt-2">{token.description}</p>
               )}
+              
+              {/* Social Links */}
+              {(token.twitter || token.telegram || token.website) && (
+                <div className="flex items-center gap-3 mt-3">
+                  {token.twitter && (
+                    <a
+                      href={token.twitter.startsWith('http') ? token.twitter : `https://twitter.com/${token.twitter.replace('@', '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg text-sm transition flex items-center gap-2"
+                    >
+                      <span>𝕏</span>
+                      <span>Twitter</span>
+                    </a>
+                  )}
+                  {token.telegram && (
+                    <a
+                      href={token.telegram.startsWith('http') ? token.telegram : `https://t.me/${token.telegram.replace('@', '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg text-sm transition flex items-center gap-2"
+                    >
+                      <span>✈️</span>
+                      <span>Telegram</span>
+                    </a>
+                  )}
+                  {token.website && (
+                    <a
+                      href={token.website.startsWith('http') ? token.website : `https://${token.website}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg text-sm transition flex items-center gap-2"
+                    >
+                      <span>🌐</span>
+                      <span>Website</span>
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

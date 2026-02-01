@@ -5,10 +5,18 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 interface ChatMessage {
   id: string;
   sender: string;
-  senderName: string | null;
+  username: string | null;
+  avatar: string | null;
   message: string;
   replyTo: string | null;
   createdAt: string;
+}
+
+interface UserProfile {
+  wallet: string;
+  username: string | null;
+  avatar: string | null;
+  messageCount: number;
 }
 
 interface TokenChatProps {
@@ -26,7 +34,6 @@ function formatTimeAgo(date: Date): string {
 }
 
 function shortenAddress(address: string): string {
-  if (address === 'anonymous') return '🐺 anon';
   if (address.length <= 10) return address;
   return `${address.slice(0, 4)}...${address.slice(-4)}`;
 }
@@ -38,6 +45,10 @@ export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [editingUsername, setEditingUsername] = useState(false);
+  const [newUsername, setNewUsername] = useState('');
+  const [savingUsername, setSavingUsername] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -55,6 +66,20 @@ export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
       setLoading(false);
     }
   }, [mint]);
+
+  // Fetch profile when wallet connects
+  const fetchProfile = useCallback(async (wallet: string) => {
+    try {
+      const res = await fetch(`/api/profile?wallet=${wallet}`);
+      const data = await res.json();
+      if (data.success && data.profile) {
+        setProfile(data.profile);
+        setNewUsername(data.profile.username || '');
+      }
+    } catch (err) {
+      console.error('Failed to fetch profile:', err);
+    }
+  }, []);
 
   // Initial load and polling
   useEffect(() => {
@@ -79,7 +104,9 @@ export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
       const provider = window?.phantom?.solana;
       if (provider?.isPhantom) {
         const response = await provider.connect();
-        setWalletAddress(response.publicKey.toString());
+        const wallet = response.publicKey.toString();
+        setWalletAddress(wallet);
+        fetchProfile(wallet);
       } else {
         setError('Phantom wallet not found');
       }
@@ -88,10 +115,42 @@ export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
     }
   };
 
+  // Save username
+  const saveUsername = async () => {
+    if (!walletAddress || savingUsername) return;
+    
+    setSavingUsername(true);
+    setError('');
+
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          wallet: walletAddress,
+          username: newUsername.trim() || null,
+        }),
+      });
+
+      const data = await res.json();
+      
+      if (data.success) {
+        setProfile(data.profile);
+        setEditingUsername(false);
+      } else {
+        setError(data.error || 'Failed to save');
+      }
+    } catch (err) {
+      setError('Network error');
+    } finally {
+      setSavingUsername(false);
+    }
+  };
+
   // Send message
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || sending) return;
+    if (!newMessage.trim() || sending || !walletAddress) return;
 
     setSending(true);
     setError('');
@@ -102,7 +161,7 @@ export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           mint,
-          sender: walletAddress || 'anonymous',
+          sender: walletAddress,
           message: newMessage.trim(),
         }),
       });
@@ -122,8 +181,13 @@ export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
     }
   };
 
+  const getDisplayName = (msg: ChatMessage) => {
+    if (msg.username) return msg.username;
+    return shortenAddress(msg.sender);
+  };
+
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden flex flex-col" style={{ height: '400px' }}>
+    <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden flex flex-col" style={{ height: '420px' }}>
       {/* Header */}
       <div className="bg-gray-800/50 px-4 py-3 border-b border-gray-800 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -131,18 +195,53 @@ export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
           <span className="font-medium text-white">${tokenSymbol} Chat</span>
           <span className="text-gray-500 text-sm">({messages.length})</span>
         </div>
-        {!walletAddress && (
+        {!walletAddress ? (
           <button
             onClick={connectWallet}
-            className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1 rounded-lg transition"
+            className="text-xs bg-orange-500 hover:bg-orange-400 text-white px-3 py-1.5 rounded-lg transition font-medium"
           >
-            Connect Wallet
+            Connect to Chat
           </button>
-        )}
-        {walletAddress && (
-          <span className="text-xs text-green-400">
-            ✓ {shortenAddress(walletAddress)}
-          </span>
+        ) : (
+          <div className="flex items-center gap-2">
+            {editingUsername ? (
+              <div className="flex items-center gap-1">
+                <input
+                  type="text"
+                  value={newUsername}
+                  onChange={(e) => setNewUsername(e.target.value)}
+                  placeholder="username"
+                  maxLength={20}
+                  className="w-24 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-xs text-white focus:border-orange-500 focus:outline-none"
+                />
+                <button
+                  onClick={saveUsername}
+                  disabled={savingUsername}
+                  className="text-green-400 hover:text-green-300 text-xs"
+                >
+                  {savingUsername ? '...' : '✓'}
+                </button>
+                <button
+                  onClick={() => {
+                    setEditingUsername(false);
+                    setNewUsername(profile?.username || '');
+                  }}
+                  className="text-gray-400 hover:text-gray-300 text-xs"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setEditingUsername(true)}
+                className="text-xs text-orange-400 hover:text-orange-300 transition"
+                title="Edit username"
+              >
+                {profile?.username || shortenAddress(walletAddress)}
+              </button>
+            )}
+            <span className="text-green-400 text-xs">●</span>
+          </div>
         )}
       </div>
 
@@ -159,7 +258,7 @@ export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
           <div className="flex flex-col items-center justify-center h-full text-gray-500">
             <div className="text-4xl mb-2">🐺</div>
             <div>No messages yet</div>
-            <div className="text-sm">Be the first to chat!</div>
+            <div className="text-sm">Connect wallet to chat!</div>
           </div>
         ) : (
           messages.map((msg) => (
@@ -167,12 +266,13 @@ export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
               <div className="flex items-start gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-baseline gap-2 flex-wrap">
-                    <span className={`font-medium text-sm ${
-                      msg.sender === 'anonymous' 
-                        ? 'text-gray-400' 
-                        : 'text-orange-400'
-                    }`}>
-                      {msg.senderName || shortenAddress(msg.sender)}
+                    <span 
+                      className={`font-medium text-sm ${
+                        msg.username ? 'text-orange-400' : 'text-gray-400'
+                      }`}
+                      title={msg.sender}
+                    >
+                      {getDisplayName(msg)}
                     </span>
                     <span className="text-gray-600 text-xs">
                       {formatTimeAgo(new Date(msg.createdAt))}
@@ -188,34 +288,44 @@ export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
       </div>
 
       {/* Input */}
-      <form onSubmit={sendMessage} className="p-3 border-t border-gray-800">
+      <div className="p-3 border-t border-gray-800">
         {error && (
           <div className="text-red-400 text-xs mb-2">{error}</div>
         )}
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            placeholder={walletAddress ? "Type a message..." : "Chat as anon..."}
-            maxLength={500}
-            className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:border-orange-500 focus:outline-none"
-          />
-          <button
-            type="submit"
-            disabled={!newMessage.trim() || sending}
-            className="bg-orange-500 hover:bg-orange-400 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-medium transition"
-          >
-            {sending ? '...' : 'Send'}
-          </button>
-        </div>
-        <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
-          <span>{newMessage.length}/500</span>
-          {!walletAddress && (
-            <span>Connect wallet to show your address</span>
-          )}
-        </div>
-      </form>
+        {walletAddress ? (
+          <form onSubmit={sendMessage}>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                placeholder="Type a message..."
+                maxLength={500}
+                className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:border-orange-500 focus:outline-none"
+              />
+              <button
+                type="submit"
+                disabled={!newMessage.trim() || sending}
+                className="bg-orange-500 hover:bg-orange-400 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+              >
+                {sending ? '...' : 'Send'}
+              </button>
+            </div>
+            <div className="text-xs text-gray-500 mt-2">
+              {newMessage.length}/500
+            </div>
+          </form>
+        ) : (
+          <div className="text-center py-2">
+            <button
+              onClick={connectWallet}
+              className="bg-orange-500 hover:bg-orange-400 text-white px-6 py-2 rounded-lg text-sm font-medium transition"
+            >
+              Connect Wallet to Chat
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -178,14 +178,33 @@ model Config {
 }
 
 // ============================================
+// USER PROFILES (wallet-based identity)
+// ============================================
+model UserProfile {
+  id        String   @id @default(uuid())
+  wallet    String   @unique
+  
+  // Display info
+  username  String?  // Custom display name
+  avatar    String?  // Avatar URL
+  
+  // Stats (updated on activity)
+  messageCount Int @default(0) @map("message_count")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@map("user_profiles")
+}
+
+// ============================================
 // TOKEN CHAT MESSAGES
 // ============================================
 model ChatMessage {
   id        String   @id @default(uuid())
   tokenMint String   @map("token_mint")
   
-  sender    String   // wallet address or "anonymous"
-  senderName String? @map("sender_name")
+  sender    String   // wallet address
   message   String
   
   // Optional reply
@@ -194,6 +213,7 @@ model ChatMessage {
   createdAt DateTime @default(now()) @map("created_at")
   
   @@index([tokenMint])
+  @@index([sender])
   @@index([createdAt(sort: Desc)])
   @@map("chat_messages")
 }

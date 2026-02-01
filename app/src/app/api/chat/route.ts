@@ -23,6 +23,9 @@ export async function GET(request: NextRequest) {
       },
       orderBy: { createdAt: 'desc' },
       take: limit,
+      include: {
+        reactions: true,
+      },
     });
 
     // Get unique sender wallets to fetch profiles
@@ -36,16 +39,29 @@ export async function GET(request: NextRequest) {
     // Create wallet -> profile map
     const profileMap = new Map(profiles.map(p => [p.wallet, p]));
 
-    // Enrich messages with profile data
-    const enrichedMessages = messages.map(msg => ({
-      id: msg.id,
-      sender: msg.sender,
-      username: profileMap.get(msg.sender)?.username || null,
-      avatar: profileMap.get(msg.sender)?.avatar || null,
-      message: msg.message,
-      replyTo: msg.replyTo,
-      createdAt: msg.createdAt.toISOString(),
-    }));
+    // Enrich messages with profile data and aggregate reactions
+    const enrichedMessages = messages.map(msg => {
+      // Aggregate reactions by emoji
+      const reactionCounts: Record<string, { count: number; wallets: string[] }> = {};
+      for (const reaction of msg.reactions) {
+        if (!reactionCounts[reaction.emoji]) {
+          reactionCounts[reaction.emoji] = { count: 0, wallets: [] };
+        }
+        reactionCounts[reaction.emoji].count++;
+        reactionCounts[reaction.emoji].wallets.push(reaction.wallet);
+      }
+
+      return {
+        id: msg.id,
+        sender: msg.sender,
+        username: profileMap.get(msg.sender)?.username || null,
+        avatar: profileMap.get(msg.sender)?.avatar || null,
+        message: msg.message,
+        replyTo: msg.replyTo,
+        createdAt: msg.createdAt.toISOString(),
+        reactions: reactionCounts,
+      };
+    });
 
     // Return in chronological order (oldest first)
     return NextResponse.json({
@@ -133,6 +149,7 @@ export async function POST(request: NextRequest) {
         message: chatMessage.message,
         replyTo: chatMessage.replyTo,
         createdAt: chatMessage.createdAt.toISOString(),
+        reactions: {},
       },
     });
   } catch (error) {

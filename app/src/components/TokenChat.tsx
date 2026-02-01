@@ -3,6 +3,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useWallet } from '@/contexts/WalletContext';
 
+interface ReactionData {
+  count: number;
+  wallets: string[];
+}
+
 interface ChatMessage {
   id: string;
   sender: string;
@@ -11,7 +16,10 @@ interface ChatMessage {
   message: string;
   replyTo: string | null;
   createdAt: string;
+  reactions: Record<string, ReactionData>;
 }
+
+const EMOJI_OPTIONS = ['🔥', '👍', '😂', '❤️', '🚀', '👀'];
 
 interface UserProfile {
   wallet: string;
@@ -155,6 +163,63 @@ export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
     }
   };
 
+  // Toggle reaction
+  const toggleReaction = async (messageId: string, emoji: string) => {
+    if (!connected || !publicKey) return;
+
+    const message = messages.find(m => m.id === messageId);
+    if (!message) return;
+
+    const hasReacted = message.reactions[emoji]?.wallets.includes(publicKey);
+
+    try {
+      if (hasReacted) {
+        // Remove reaction
+        await fetch(`/api/reactions?messageId=${messageId}&emoji=${encodeURIComponent(emoji)}&wallet=${publicKey}`, {
+          method: 'DELETE',
+        });
+        // Update local state
+        setMessages(prev => prev.map(m => {
+          if (m.id !== messageId) return m;
+          const newReactions = { ...m.reactions };
+          if (newReactions[emoji]) {
+            newReactions[emoji] = {
+              count: newReactions[emoji].count - 1,
+              wallets: newReactions[emoji].wallets.filter(w => w !== publicKey),
+            };
+            if (newReactions[emoji].count === 0) {
+              delete newReactions[emoji];
+            }
+          }
+          return { ...m, reactions: newReactions };
+        }));
+      } else {
+        // Add reaction
+        await fetch('/api/reactions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messageId, emoji, wallet: publicKey }),
+        });
+        // Update local state
+        setMessages(prev => prev.map(m => {
+          if (m.id !== messageId) return m;
+          const newReactions = { ...m.reactions };
+          if (newReactions[emoji]) {
+            newReactions[emoji] = {
+              count: newReactions[emoji].count + 1,
+              wallets: [...newReactions[emoji].wallets, publicKey],
+            };
+          } else {
+            newReactions[emoji] = { count: 1, wallets: [publicKey] };
+          }
+          return { ...m, reactions: newReactions };
+        }));
+      }
+    } catch (err) {
+      console.error('Failed to toggle reaction:', err);
+    }
+  };
+
   // Send message
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -280,6 +345,52 @@ export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
                     </span>
                   </div>
                   <p className="text-gray-300 text-sm break-words">{msg.message}</p>
+                  
+                  {/* Reactions */}
+                  <div className="flex items-center gap-1 mt-1 flex-wrap">
+                    {/* Existing reactions */}
+                    {Object.entries(msg.reactions).map(([emoji, data]) => (
+                      <button
+                        key={emoji}
+                        onClick={() => toggleReaction(msg.id, emoji)}
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition ${
+                          connected && publicKey && data.wallets.includes(publicKey)
+                            ? 'bg-orange-500/30 border border-orange-500/50 text-orange-300'
+                            : 'bg-gray-700/50 hover:bg-gray-700 text-gray-400'
+                        }`}
+                        title={`${data.count} reaction${data.count !== 1 ? 's' : ''}`}
+                      >
+                        <span>{emoji}</span>
+                        <span>{data.count}</span>
+                      </button>
+                    ))}
+                    
+                    {/* Add reaction button - only show on hover or if connected */}
+                    {connected && (
+                      <div className="relative inline-block">
+                        <button
+                          className="opacity-0 group-hover:opacity-100 px-2 py-0.5 rounded-full text-xs bg-gray-700/50 hover:bg-gray-700 text-gray-400 transition"
+                          onClick={(e) => {
+                            const picker = e.currentTarget.nextElementSibling;
+                            picker?.classList.toggle('hidden');
+                          }}
+                        >
+                          +
+                        </button>
+                        <div className="hidden absolute left-0 bottom-full mb-1 bg-gray-800 border border-gray-700 rounded-lg p-1 flex gap-1 z-10">
+                          {EMOJI_OPTIONS.map(emoji => (
+                            <button
+                              key={emoji}
+                              onClick={() => toggleReaction(msg.id, emoji)}
+                              className="hover:bg-gray-700 p-1 rounded transition"
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

@@ -3,14 +3,16 @@
 import { useState, useEffect, use, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { Token, Trade, TradeResponse } from '@/lib/types';
-import TokenChat from '@/components/TokenChat';
+import ChatAndTrades from '@/components/ChatAndTrades';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { useWallet } from '@/contexts/WalletContext';
+import { fetchHoldersClient, fetchBalanceClient } from '@/lib/solana-client';
 
 export default function TokenPage({ params }: { params: Promise<{ mint: string }> }) {
   const { mint } = use(params);
-  const { connected, publicKey, balance: solBalance, connect } = useWallet();
+  const { connected, publicKey, balance: solBalance, connect, signTransaction } = useWallet();
+  const [mockMode, setMockMode] = useState<boolean | null>(null);
   
   const [token, setToken] = useState<Token | null>(null);
   const [trades, setTrades] = useState<Trade[]>([]);
@@ -22,8 +24,20 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
   const [tradeResult, setTradeResult] = useState<TradeResponse | null>(null);
   const [copied, setCopied] = useState(false);
   const [tokenBalance, setTokenBalance] = useState<number>(0);
+  const [holders, setHolders] = useState<Array<{
+    address: string;
+    balance: number;
+    percentage: number;
+    label?: string;
+  }>>([]);
+  const [circulatingSupply, setCirculatingSupply] = useState<number>(0);
+  const [onChainStats, setOnChainStats] = useState<{
+    marketCap: number;
+    price: number;
+    bondingCurveSol: number;
+  } | null>(null);
 
-  // Fetch token holdings for connected wallet
+  // Fetch token holdings for connected wallet (client-side RPC)
   const fetchTokenBalance = useCallback(async () => {
     if (!connected || !publicKey || !token) {
       setTokenBalance(0);
@@ -31,24 +45,89 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
     }
 
     try {
-      // In production, query SPL token accounts
-      // For now, use mock or API
-      const res = await fetch(`/api/balance?wallet=${publicKey}&mint=${mint}`);
-      const data = await res.json();
-      if (data.success) {
-        setTokenBalance(data.tokenBalance || 0);
-      }
+      // Use client-side RPC to avoid rate limiting
+      const balance = await fetchBalanceClient(mint, publicKey);
+      setTokenBalance(balance);
     } catch (err) {
       console.error('Failed to fetch token balance:', err);
-      // Fallback to 0
-      setTokenBalance(0);
+      // Fallback to API
+      try {
+        const res = await fetch(`/api/balance?wallet=${publicKey}&mint=${mint}`);
+        const data = await res.json();
+        if (data.success) {
+          setTokenBalance(data.tokenBalance || 0);
+        }
+      } catch (e) {
+        setTokenBalance(0);
+      }
     }
   }, [connected, publicKey, token, mint]);
+
+  const fetchHolders = useCallback(async (creator?: string) => {
+    try {
+      // Use client-side RPC to avoid rate limiting on our server
+      const data = await fetchHoldersClient(mint, creator);
+      setHolders(data.holders || []);
+      setCirculatingSupply(data.circulatingSupply || 0);
+    } catch (err) {
+      console.warn('Holders fetch failed:', err);
+      // Fallback to API
+      try {
+        const url = creator 
+          ? `/api/holders?mint=${mint}&creator=${creator}`
+          : `/api/holders?mint=${mint}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.success) {
+          setHolders(data.holders || []);
+          setCirculatingSupply(data.circulatingSupply || 0);
+        }
+      } catch (e) {
+        console.warn('Holders API fallback failed');
+      }
+    }
+  }, [mint]);
 
   useEffect(() => {
     fetchToken();
     fetchSolPrice();
+    fetchNetworkMode();
+    fetchOnChainStats();
   }, [mint]);
+
+  // Refetch holders when token loads (to pass creator for labeling)
+  useEffect(() => {
+    if (token?.creator) {
+      fetchHolders(token.creator);
+    }
+  }, [token?.creator, fetchHolders]);
+
+  const fetchOnChainStats = async () => {
+    try {
+      const res = await fetch(`/api/stats?mint=${mint}`);
+      const data = await res.json();
+      if (data.success && data.onChain) {
+        setOnChainStats({
+          marketCap: data.onChain.marketCap,
+          price: data.onChain.price,
+          bondingCurveSol: data.onChain.bondingCurveSol,
+        });
+      }
+    } catch (err) {
+      console.warn('On-chain stats fetch failed');
+    }
+  };
+
+  const fetchNetworkMode = async () => {
+    try {
+      const res = await fetch('/api/network');
+      const data = await res.json();
+      setMockMode(data.mockMode ?? true);
+    } catch (err) {
+      console.warn('Network check failed, assuming mock mode');
+      setMockMode(true);
+    }
+  };
 
   const fetchSolPrice = async () => {
     try {
@@ -81,6 +160,19 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
       setLoading(false);
     }
   };
+
+  // Standalone trades fetch for polling
+  const fetchTrades = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/trades?mint=${mint}&limit=50`);
+      const data = await res.json();
+      if (data.success && data.trades) {
+        setTrades(data.trades);
+      }
+    } catch (err) {
+      console.warn('Trades fetch failed');
+    }
+  }, [mint]);
 
   // Update page title when token loads
   useEffect(() => {
@@ -132,34 +224,118 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
 
   const handleTrade = async () => {
     if (!amount || !token || !connected || !publicKey) return;
+    
+    // Wait for network mode to be determined
+    if (mockMode === null) {
+      setTradeResult({ success: false, error: 'Loading network status...' });
+      return;
+    }
+    
     setTrading(true);
     setTradeResult(null);
 
     try {
-      // Use mock trade API (updates DB prices) - on-chain atomic swaps need a program
-      // Token creation is on-chain, but trades use DB bonding curve for now
-      const res = await fetch('/api/trade', {
+      console.log('Trade initiated:', { mockMode, tradeType, amount: parseFloat(amount) });
+      
+      // Mock mode: use simple DB-only trade
+      if (mockMode === true) {
+        console.log('Using MOCK trade endpoint');
+        const res = await fetch('/api/trade', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mint: token.mint,
+            type: tradeType,
+            amount: parseFloat(amount),
+            trader: publicKey,
+          }),
+        });
+
+        const data: TradeResponse = await res.json();
+        setTradeResult(data);
+
+        if (data.success) {
+          setAmount('');
+          fetchToken(); fetchHolders(token?.creator); fetchOnChainStats();
+          fetchTokenBalance();
+        }
+        return;
+      }
+
+      // On-chain mode: two-step prepare → sign → execute
+      console.log('Starting ON-CHAIN trade...');
+      
+      // Step 1: Prepare unsigned transaction
+      const prepareRes = await fetch('/api/trade/prepare', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           mint: token.mint,
           type: tradeType,
           amount: parseFloat(amount),
-          trader: publicKey,
+          wallet: publicKey,
+          slippage: 0.01, // 1%
         }),
       });
 
-      const data: TradeResponse = await res.json();
-      setTradeResult(data);
-
-      if (data.success) {
-        setAmount('');
-        fetchToken();
-        fetchTokenBalance();
+      const prepareData = await prepareRes.json();
+      
+      if (!prepareData.success) {
+        console.error('Prepare failed:', prepareData);
+        setTradeResult({ success: false, error: prepareData.error || 'Failed to prepare transaction' });
+        return;
       }
+      console.log('Prepare succeeded:', prepareData);
+
+      console.log('Transaction prepared, requesting signature...');
+
+      // Step 2: User signs with wallet
+      const signedTx = await signTransaction(prepareData.transaction);
+      
+      if (!signedTx) {
+        console.error('Signing failed or cancelled');
+        setTradeResult({ success: false, error: 'Transaction signing cancelled or failed' });
+        return;
+      }
+      console.log('Transaction signed successfully');
+
+      console.log('Transaction signed, executing...');
+
+      // Step 3: Execute signed transaction
+      const executeRes = await fetch('/api/trade/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mint: token.mint,
+          type: tradeType,
+          signedTransaction: signedTx,
+          wallet: publicKey,
+          expectedOutput: tradeType === 'buy' ? prepareData.output.tokens : prepareData.output.sol,
+          solAmount: tradeType === 'buy' ? prepareData.input.sol : prepareData.output.sol,
+          tokenAmount: tradeType === 'sell' ? prepareData.input.tokens : prepareData.output.tokens,
+        }),
+      });
+
+      const executeData = await executeRes.json();
+      
+      if (executeData.success) {
+        setTradeResult({
+          success: true,
+          trade: executeData.trade,
+          newPrice: executeData.newPrice,
+          fees: executeData.fees,
+          signature: executeData.signature,
+        });
+        setAmount('');
+        fetchToken(); fetchHolders(token?.creator); fetchOnChainStats();
+        fetchTokenBalance();
+      } else {
+        setTradeResult({ success: false, error: executeData.error || 'Trade execution failed' });
+      }
+      
     } catch (err) {
       console.error('Trade error:', err);
-      setTradeResult({ success: false, error: 'Network error' });
+      setTradeResult({ success: false, error: err instanceof Error ? err.message : 'Network error' });
     } finally {
       setTrading(false);
     }
@@ -196,6 +372,14 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
     return n.toFixed(2) + ' SOL';
   };
 
+  const formatSolOutput = (n: number) => {
+    if (n === 0) return '0 SOL';
+    if (n >= 1) return n.toFixed(4) + ' SOL';
+    if (n >= 0.0001) return n.toFixed(6) + ' SOL';
+    if (n >= 0.0000001) return n.toFixed(9) + ' SOL';
+    return n.toExponential(4) + ' SOL';
+  };
+
   const formatValue = (solAmount: number) => {
     if (solPrice !== null) {
       return formatUsd(solAmount * solPrice);
@@ -203,8 +387,27 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
     return formatSol(solAmount);
   };
 
+  // Calculate graduation market cap from bonding curve
+  const graduationMarketCap = useMemo(() => {
+    const GRADUATION_SOL = 120;
+    const INITIAL_VIRTUAL_SOL = 30;
+    const INITIAL_VIRTUAL_TOKENS = 1_073_000_000;
+    const TOTAL_SUPPLY = 1_000_000_000;
+    
+    const k = INITIAL_VIRTUAL_SOL * INITIAL_VIRTUAL_TOKENS;
+    const gradVirtualSol = INITIAL_VIRTUAL_SOL + GRADUATION_SOL;
+    const gradVirtualTokens = k / gradVirtualSol;
+    const gradPrice = gradVirtualSol / gradVirtualTokens;
+    const mcapSol = gradPrice * TOTAL_SUPPLY;
+    
+    return {
+      sol: mcapSol,
+      usd: solPrice !== null ? mcapSol * solPrice : null,
+    };
+  }, [solPrice]);
+
   const progressPercent = token 
-    ? Math.min((token.real_sol_reserves / 85) * 100, 100)
+    ? Math.min((token.real_sol_reserves / 120) * 100, 100)
     : 0;
 
   if (loading) {
@@ -312,17 +515,31 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
               {/* Price & Market Cap */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-gray-800/50 rounded-xl p-4">
-                  <div className="text-gray-500 text-sm mb-1">Price</div>
-                  <div className="text-white font-mono text-lg">{formatValue(token.price_sol)}</div>
+                  <div className="text-gray-500 text-sm mb-1 flex items-center gap-1">
+                    Price
+                    {onChainStats && <span className="text-green-500 text-xs">●</span>}
+                  </div>
+                  <div className="text-white font-mono text-lg">
+                    {formatValue(onChainStats?.price ?? token.price_sol)}
+                  </div>
                   {solPrice !== null && (
-                    <div className="text-gray-500 font-mono text-xs">{formatPrice(token.price_sol)} SOL</div>
+                    <div className="text-gray-500 font-mono text-xs">
+                      {formatPrice(onChainStats?.price ?? token.price_sol)} SOL
+                    </div>
                   )}
                 </div>
                 <div className="bg-gray-800/50 rounded-xl p-4">
-                  <div className="text-gray-500 text-sm mb-1">Market Cap</div>
-                  <div className="text-orange-400 font-mono text-lg">{formatValue(token.market_cap_sol)}</div>
+                  <div className="text-gray-500 text-sm mb-1 flex items-center gap-1">
+                    Market Cap
+                    {onChainStats && <span className="text-green-500 text-xs">●</span>}
+                  </div>
+                  <div className="text-orange-400 font-mono text-lg">
+                    {formatValue(onChainStats?.marketCap ?? token.market_cap_sol)}
+                  </div>
                   {solPrice !== null && (
-                    <div className="text-gray-500 font-mono text-xs">{formatNumber(token.market_cap_sol)} SOL</div>
+                    <div className="text-gray-500 font-mono text-xs">
+                      {formatNumber(onChainStats?.marketCap ?? token.market_cap_sol)} SOL
+                    </div>
                   )}
                 </div>
                 <div className="bg-gray-800/50 rounded-xl p-4">
@@ -352,37 +569,13 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                 </div>
                 <div className="flex justify-between text-xs text-gray-500 mt-2">
                   <span>{formatValue(token.real_sol_reserves)} raised</span>
-                  <span>{formatValue(85)} goal</span>
+                  <span>
+                    {graduationMarketCap.usd !== null 
+                      ? formatUsd(graduationMarketCap.usd) + ' mcap goal'
+                      : formatNumber(graduationMarketCap.sol) + ' SOL mcap goal'
+                    }
+                  </span>
                 </div>
-              </div>
-
-              {/* Recent Trades */}
-              <div className="bg-gray-800/50 rounded-xl p-4">
-                <h3 className="text-white font-semibold mb-4">Recent Trades</h3>
-                {trades.length === 0 ? (
-                  <div className="text-gray-500 text-center py-4">No trades yet</div>
-                ) : (
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {trades.map((trade) => (
-                      <div key={trade.id} className="flex items-center justify-between text-sm py-2 border-b border-gray-700/50 last:border-0">
-                        <div className="flex items-center gap-2">
-                          <span className={trade.type === 'buy' ? 'text-green-400' : 'text-red-400'}>
-                            {trade.type === 'buy' ? '🟢' : '🔴'}
-                          </span>
-                          <span className="text-gray-400">
-                            {trade.type === 'buy' ? 'Buy' : 'Sell'}
-                          </span>
-                        </div>
-                        <div className="text-white font-mono">
-                          {formatNumber(trade.token_amount)} tokens
-                        </div>
-                        <div className="text-gray-400 font-mono">
-                          {trade.sol_amount.toFixed(4)} SOL
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
 
               {/* Mint Address */}
@@ -405,11 +598,19 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
               </div>
 
               {/* Token Chat */}
-              <TokenChat mint={token.mint} tokenSymbol={token.symbol} />
+              {/* Chat & Trades */}
+              <ChatAndTrades 
+                mint={token.mint} 
+                tokenSymbol={token.symbol} 
+                trades={trades}
+                onTradesUpdate={fetchTrades}
+              />
             </div>
 
-            {/* Trade Panel */}
-            <div className="bg-gray-800/50 rounded-xl p-6 h-fit sticky top-6">
+            {/* Right Sidebar */}
+            <div className="space-y-6">
+              {/* Trade Panel */}
+              <div className="bg-gray-800/50 rounded-xl p-6 h-fit sticky top-6">
               <h3 className="text-white font-semibold mb-4">Trade</h3>
 
               {token.graduated ? (
@@ -542,18 +743,19 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                         <span className="text-white font-mono">
                           {tradeType === 'buy' 
                             ? formatNumber(estimatedOutput.tokens || 0) + ' ' + token.symbol
-                            : (estimatedOutput.sol || 0).toFixed(6) + ' SOL'
+                            : formatSolOutput(estimatedOutput.sol || 0)
                           }
                         </span>
                       </div>
                       <div className="flex justify-between text-sm mt-1">
                         <span className="text-gray-400">Price Impact</span>
                         <span className={`font-mono ${
+                          tradeType === 'sell' ? 'text-red-400' :
                           priceImpact > 5 ? 'text-red-400' : 
                           priceImpact > 2 ? 'text-yellow-400' : 
                           'text-green-400'
                         }`}>
-                          {priceImpact.toFixed(2)}%
+                          {tradeType === 'sell' ? '-' : ''}{priceImpact.toFixed(2)}%
                         </span>
                       </div>
                     </div>
@@ -638,8 +840,70 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                   </div>
                 </>
               )}
+              </div>
+
+              {/* Holder Distribution */}
+            <div className="bg-gray-800/50 rounded-xl p-5">
+              <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                <span>👥</span> Holder Distribution
+              </h3>
+              {holders.length === 0 ? (
+                <div className="text-gray-500 text-center py-4 text-sm">Loading...</div>
+              ) : (
+                <div className="space-y-3">
+                  {holders.slice(0, 5).map((holder, i) => (
+                    <div key={holder.address} className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-400">
+                        {i + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        {holder.label ? (
+                          <div className={`font-medium text-sm ${
+                            holder.label === 'Bonding Curve' ? 'text-orange-400' : 'text-blue-400'
+                          }`}>{holder.label}</div>
+                        ) : (
+                          <div className="text-gray-300 font-mono text-sm truncate">
+                            {holder.address.slice(0, 6)}...{holder.address.slice(-4)}
+                          </div>
+                        )}
+                        <div className="text-gray-500 text-xs">{formatNumber(holder.balance)} tokens</div>
+                      </div>
+                      <div className="text-right">
+                        <div 
+                          className="h-2 rounded-full bg-gray-700 w-16 overflow-hidden"
+                          title={`${holder.percentage.toFixed(2)}%`}
+                        >
+                          <div 
+                            className={`h-full rounded-full ${
+                              holder.label === 'Bonding Curve' ? 'bg-orange-500' : 
+                              holder.label === 'Creator (dev)' ? 'bg-blue-500' : 'bg-purple-500'
+                            }`}
+                            style={{ width: `${Math.min(holder.percentage, 100)}%` }}
+                          />
+                        </div>
+                        <div className="text-gray-400 text-xs mt-1 font-mono">{holder.percentage.toFixed(1)}%</div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {/* Circulating Supply Footer */}
+                  {circulatingSupply > 0 && (
+                    <div className="pt-3 mt-3 border-t border-gray-700/50">
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-gray-500">Circulating</span>
+                        <span className="text-white font-mono">{formatNumber(circulatingSupply)}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-sm mt-1">
+                        <span className="text-gray-500">Total Supply</span>
+                        <span className="text-gray-400 font-mono">1,000,000,000</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
+        </div>
         </div>
       </section>
 

@@ -103,6 +103,12 @@ export interface TradeResponse {
   tokens_received?: number;
   sol_received?: number;
   new_price?: number;
+  newPrice?: number;  // Alias for on-chain flow
+  fees?: {
+    total: number;
+    protocol: number;
+    creator: number;
+  };
   error?: string;
 }
 
@@ -116,7 +122,7 @@ export interface TokenListResponse {
 // Bonding curve math helpers
 export const INITIAL_VIRTUAL_SOL = 30;  // 30 SOL
 export const INITIAL_VIRTUAL_TOKENS = 1_073_000_000;  // 1.073B tokens
-export const GRADUATION_THRESHOLD_SOL = 85;  // ~$69K at $800 SOL
+export const GRADUATION_THRESHOLD_SOL = 120; // ~$69K market cap at $100/SOL
 export const FEE_BPS = 100;  // 1%
 
 export function calculateBuyTokens(

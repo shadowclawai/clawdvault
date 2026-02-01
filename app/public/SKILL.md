@@ -57,6 +57,9 @@ curl -X POST https://clawdvault.com/api/trade \
 | GET | `/api/network` | Check network mode (mock/devnet/mainnet) |
 | GET | `/api/sol-price` | Get SOL/USD price |
 | POST | `/api/upload` | Upload token image |
+| GET | `/api/holders?mint=X` | Get top token holders |
+| GET | `/api/balance?wallet=X&mint=Y` | Get wallet token balance |
+| GET | `/api/stats?mint=X` | Get on-chain token stats |
 
 ## Create Token
 
@@ -147,10 +150,11 @@ curl -X POST https://clawdvault.com/api/trade \
 
 - **Formula:** x * y = k (constant product)
 - **Initial SOL:** 30 (virtual)
-- **Initial Tokens:** 1,073,000,000
-- **Starting Price:** ~0.000028 SOL
-- **Graduation:** 85 SOL raised (~$69K market cap)
-- **Fee:** 1% total (0.5% creator + 0.5% protocol)
+- **Initial Tokens:** 1,073,000,000  
+- **Total Supply:** 1,000,000,000 (100% to bonding curve, no free creator allocation)
+- **Starting Price:** ~0.000000028 SOL
+- **Graduation:** 120 SOL raised (~$69K market cap at $100 SOL)
+- **Fee:** 1% total (0.5% protocol + 0.5% creator)
 
 ## Price Calculation
 
@@ -164,7 +168,7 @@ market_cap = price * 1,073,000,000
 1. **Always check `success`** in responses before using data
 2. **Use `/api/trade` GET** to preview before executing trades
 3. **Upload images first** via `/api/upload`, then use URL in create
-4. **Monitor graduation** - tokens migrate to Raydium at 85 SOL raised
+4. **Monitor graduation** - tokens migrate to Raydium at 120 SOL raised (~$69K mcap)
 5. **Token creators earn 0.5%** on all trades of their tokens
 
 ## On-Chain Trading (Wallet Required)
@@ -212,6 +216,52 @@ The platform supports **Phantom** wallet for Solana:
 
 For devnet testing, switch Phantom to devnet:
 Settings → Developer Settings → Change Network → Devnet
+
+## Get Holders
+
+**GET** `/api/holders?mint=TOKEN_MINT&creator=CREATOR_WALLET`
+
+```json
+{
+  "success": true,
+  "holders": [
+    {
+      "address": "ABC123...",
+      "balance": 500000000,
+      "percentage": 50.0,
+      "label": "Bonding Curve"
+    },
+    {
+      "address": "DEF456...",
+      "balance": 100000,
+      "percentage": 0.01,
+      "label": "Creator (dev)"
+    }
+  ],
+  "totalSupply": 1000000000,
+  "circulatingSupply": 500000000
+}
+```
+
+Labels: `"Bonding Curve"` for platform, `"Creator (dev)"` for token creator, `null` for others.
+
+## Get On-Chain Stats
+
+**GET** `/api/stats?mint=TOKEN_MINT`
+
+```json
+{
+  "success": true,
+  "onChain": {
+    "totalSupply": 1000000000,
+    "bondingCurveBalance": 999000000,
+    "circulatingSupply": 1000000,
+    "bondingCurveSol": 5.5,
+    "price": 0.000000028,
+    "marketCap": 28.5
+  }
+}
+```
 
 ## Rate Limits
 

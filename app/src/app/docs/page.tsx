@@ -111,7 +111,7 @@ export default function DocsPage() {
       "mint": "ABC123...",
       "name": "Crab Token",
       "symbol": "CRAB",
-      "price_sol": 0.000028,
+      "price_sol": 0.000000028,
       "market_cap_sol": 30.5,
       "volume_24h": 5.2,
       ...
@@ -141,7 +141,7 @@ export default function DocsPage() {
     "symbol": "CRAB",
     "description": "...",
     "image": "https://...",
-    "price_sol": 0.000028,
+    "price_sol": 0.000000028,
     "market_cap_sol": 30.5,
     "virtual_sol_reserves": 30,
     "virtual_token_reserves": 1073000000,
@@ -207,7 +207,7 @@ export default function DocsPage() {
   "output": 17857142,
   "price_impact": 1.67,
   "fee": 0.005,
-  "current_price": 0.000028
+  "current_price": 0.000000028
 }`}</CodeBlock>
               </div>
             </section>
@@ -352,7 +352,7 @@ export default function DocsPage() {
                 </div>
                 <div className="bg-[#0d1117] border border-gray-700 rounded-lg p-4">
                   <div className="text-gray-500 text-xs uppercase tracking-wider mb-1">Starting Price</div>
-                  <div className="text-white text-lg font-mono">~0.000028 SOL</div>
+                  <div className="text-white text-lg font-mono">~0.000000028 SOL</div>
                 </div>
                 <div className="bg-[#0d1117] border border-gray-700 rounded-lg p-4">
                   <div className="text-gray-500 text-xs uppercase tracking-wider mb-1">Graduation Threshold</div>

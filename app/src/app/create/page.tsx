@@ -425,7 +425,7 @@ export default function CreatePage() {
                 </div>
                 {initialBuy && parseFloat(initialBuy) > 0 && (
                   <div className="text-green-400 text-sm mt-2">
-                    ✓ You'll buy ~{(parseFloat(initialBuy) / 0.000028).toLocaleString(undefined, { maximumFractionDigits: 0 })} tokens at launch
+                    ✓ You'll buy ~{(parseFloat(initialBuy) / 0.000000028).toLocaleString(undefined, { maximumFractionDigits: 0 })} tokens at launch
                   </div>
                 )}
               </div>
@@ -433,8 +433,8 @@ export default function CreatePage() {
               <div className="bg-gray-800/50 rounded-lg p-4 text-sm">
                 <div className="text-amber-400 font-medium mb-2">ℹ️ Token Parameters</div>
                 <ul className="text-gray-400 space-y-1">
-                  <li>• Initial supply: 1,073,000,000 tokens</li>
-                  <li>• Starting price: ~0.000028 SOL</li>
+                  <li>• Initial supply: 1,000,000,000 tokens</li>
+                  <li>• Starting price: ~0.000000028 SOL</li>
                   <li>• 1% fee on all trades</li>
                   <li>• Graduates to Raydium at ~$69K market cap</li>
                 </ul>

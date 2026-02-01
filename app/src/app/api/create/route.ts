@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createToken, executeTrade } from '@/lib/db';
-import { createTokenOnChain, isMockMode } from '@/lib/solana';
+import { createTokenOnChain, isMockMode, executeInitialBuy } from '@/lib/solana';
 import { CreateTokenRequest, CreateTokenResponse } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -117,8 +117,26 @@ export async function POST(request: Request) {
     
     // Step 3: Execute initial buy if specified
     let initialBuyResult = null;
+    let onChainBuyResult = null;
+    
     if (body.initialBuy && body.initialBuy > 0) {
       try {
+        // On-chain: transfer tokens from platform to creator
+        if (!isMockMode()) {
+          // Use initial virtual reserves (30 SOL / 1.073B tokens)
+          const INITIAL_VIRTUAL_SOL = 30;
+          const INITIAL_VIRTUAL_TOKENS = 1_073_000_000;
+          
+          onChainBuyResult = await executeInitialBuy(
+            token.mint,
+            creator,
+            body.initialBuy,
+            INITIAL_VIRTUAL_SOL,
+            INITIAL_VIRTUAL_TOKENS
+          );
+        }
+        
+        // Update DB with the trade
         initialBuyResult = await executeTrade(
           token.mint,
           'buy',
@@ -140,10 +158,11 @@ export async function POST(request: Request) {
     };
     
     // Add initial buy info to response
-    if (initialBuyResult) {
+    if (initialBuyResult || onChainBuyResult) {
       (response as any).initialBuy = {
         sol_spent: body.initialBuy,
-        tokens_received: initialBuyResult.trade.token_amount,
+        tokens_received: onChainBuyResult?.tokensReceived || initialBuyResult?.trade.token_amount,
+        signature: onChainBuyResult?.signature,
       };
     }
     

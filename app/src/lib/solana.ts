@@ -19,6 +19,96 @@ import {
 } from '@solana/spl-token';
 import bs58 from 'bs58';
 
+// Metaplex Token Metadata Program ID
+const TOKEN_METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
+
+// Derive metadata PDA for a mint
+function getMetadataPDA(mint: PublicKey): PublicKey {
+  const [pda] = PublicKey.findProgramAddressSync(
+    [
+      Buffer.from('metadata'),
+      TOKEN_METADATA_PROGRAM_ID.toBuffer(),
+      mint.toBuffer(),
+    ],
+    TOKEN_METADATA_PROGRAM_ID
+  );
+  return pda;
+}
+
+// Build CreateMetadataAccountV3 instruction manually
+function createMetadataInstruction(
+  metadataPDA: PublicKey,
+  mint: PublicKey,
+  mintAuthority: PublicKey,
+  payer: PublicKey,
+  updateAuthority: PublicKey,
+  name: string,
+  symbol: string,
+  uri: string,
+  creators: { address: PublicKey; verified: boolean; share: number }[] | null
+): import('@solana/web3.js').TransactionInstruction {
+  const { TransactionInstruction } = require('@solana/web3.js');
+  
+  // Data for CreateMetadataAccountV3
+  // Discriminator: 33 (CreateMetadataAccountV3)
+  const nameBytes = Buffer.from(name.slice(0, 32).padEnd(32, '\0'));
+  const symbolBytes = Buffer.from(symbol.slice(0, 10).padEnd(10, '\0'));
+  const uriBytes = Buffer.from(uri.slice(0, 200).padEnd(200, '\0'));
+  
+  // Build data buffer manually
+  const data = Buffer.alloc(1 + 4 + 32 + 4 + 10 + 4 + 200 + 2 + 1 + 1 + 1 + 1 + 1);
+  let offset = 0;
+  
+  // Discriminator (CreateMetadataAccountV3 = 33)
+  data.writeUInt8(33, offset); offset += 1;
+  
+  // Name (length-prefixed string)
+  data.writeUInt32LE(name.length, offset); offset += 4;
+  Buffer.from(name).copy(data, offset); offset += name.length;
+  
+  // Symbol (length-prefixed string) 
+  data.writeUInt32LE(symbol.length, offset); offset += 4;
+  Buffer.from(symbol).copy(data, offset); offset += symbol.length;
+  
+  // URI (length-prefixed string)
+  data.writeUInt32LE(uri.length, offset); offset += 4;
+  Buffer.from(uri).copy(data, offset); offset += uri.length;
+  
+  // Seller fee basis points (0)
+  data.writeUInt16LE(0, offset); offset += 2;
+  
+  // Creators (None for simplicity)
+  data.writeUInt8(0, offset); offset += 1; // Option: None
+  
+  // Collection (None)
+  data.writeUInt8(0, offset); offset += 1;
+  
+  // Uses (None)
+  data.writeUInt8(0, offset); offset += 1;
+  
+  // Is mutable
+  data.writeUInt8(1, offset); offset += 1;
+  
+  // Collection details (None)
+  data.writeUInt8(0, offset); offset += 1;
+  
+  const trimmedData = data.slice(0, offset);
+  
+  return new TransactionInstruction({
+    keys: [
+      { pubkey: metadataPDA, isSigner: false, isWritable: true },
+      { pubkey: mint, isSigner: false, isWritable: false },
+      { pubkey: mintAuthority, isSigner: true, isWritable: false },
+      { pubkey: payer, isSigner: true, isWritable: true },
+      { pubkey: updateAuthority, isSigner: false, isWritable: false },
+      { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false }, // System program
+      { pubkey: new PublicKey('SysvarRent111111111111111111111111111111111'), isSigner: false, isWritable: false }, // Rent sysvar
+    ],
+    programId: TOKEN_METADATA_PROGRAM_ID,
+    data: trimmedData,
+  });
+}
+
 // Network config - use devnet for testing, mainnet for production
 const NETWORK = process.env.SOLANA_NETWORK || 'devnet';
 const RPC_URL = process.env.SOLANA_RPC_URL || 
@@ -29,8 +119,8 @@ const RPC_URL = process.env.SOLANA_RPC_URL ||
 // Token config
 const TOKEN_DECIMALS = 6;
 const TOTAL_SUPPLY = 1_000_000_000; // 1 billion tokens
-const BONDING_CURVE_ALLOCATION = 800_000_000; // 80% for bonding curve
-const INITIAL_DEV_ALLOCATION = 200_000_000; // 20% for initial liquidity/dev
+const BONDING_CURVE_ALLOCATION = TOTAL_SUPPLY; // 100% goes to bonding curve (pump.fun style)
+// No free creator allocation - creators must buy like everyone else
 
 // Platform wallet (holds fees, can be used for initial liquidity)
 const PLATFORM_WALLET = process.env.PLATFORM_WALLET_SECRET 
@@ -131,7 +221,23 @@ export async function createTokenOnChain(
     )
   );
   
-  // 3. Create platform's token account
+  // 3. Create token metadata (Metaplex)
+  const metadataPDA = getMetadataPDA(mint);
+  transaction.add(
+    createMetadataInstruction(
+      metadataPDA,
+      mint,
+      payer.publicKey,
+      payer.publicKey,
+      payer.publicKey,
+      params.name,
+      params.symbol,
+      params.image || '', // Token image URI
+      null // No creators for simplicity
+    )
+  );
+  
+  // 4. Create platform's token account
   transaction.add(
     createAssociatedTokenAccountInstruction(
       payer.publicKey, // Payer
@@ -141,7 +247,7 @@ export async function createTokenOnChain(
     )
   );
   
-  // 4. Mint tokens to platform (for bonding curve)
+  // 5. Mint tokens to platform (for bonding curve)
   transaction.add(
     createMintToInstruction(
       mint,
@@ -151,37 +257,9 @@ export async function createTokenOnChain(
     )
   );
   
-  // 5. Create creator's token account (if different from platform)
-  if (!creatorPubkey.equals(payer.publicKey)) {
-    transaction.add(
-      createAssociatedTokenAccountInstruction(
-        payer.publicKey,
-        creatorATA,
-        creatorPubkey,
-        mint
-      )
-    );
-    
-    // 6. Mint initial allocation to creator
-    transaction.add(
-      createMintToInstruction(
-        mint,
-        creatorATA,
-        payer.publicKey,
-        BigInt(INITIAL_DEV_ALLOCATION) * BigInt(10 ** TOKEN_DECIMALS)
-      )
-    );
-  } else {
-    // Creator is platform, mint full supply to platform
-    transaction.add(
-      createMintToInstruction(
-        mint,
-        platformATA,
-        payer.publicKey,
-        BigInt(INITIAL_DEV_ALLOCATION) * BigInt(10 ** TOKEN_DECIMALS)
-      )
-    );
-  }
+  // pump.fun style: NO free creator allocation
+  // All tokens go to bonding curve, creators must buy like everyone else
+  // Creator can use "initial buy" option to purchase tokens at launch price
   
   // Send transaction
   const signature = await sendAndConfirmTransaction(
@@ -287,6 +365,74 @@ export async function transferTokens(
   );
   
   return signature;
+}
+
+/**
+ * Execute initial buy during token creation
+ * Platform transfers tokens to creator
+ */
+export async function executeInitialBuy(
+  mint: string,
+  creator: string,
+  solAmount: number,
+  virtualSol: number,
+  virtualTokens: number
+): Promise<{ signature: string; tokensReceived: number } | null> {
+  if (isMockMode() || !PLATFORM_WALLET) {
+    return null; // Let DB handle it in mock mode
+  }
+
+  // Calculate tokens using bonding curve math
+  const newVirtualSol = virtualSol + solAmount;
+  const invariant = virtualSol * virtualTokens;
+  const newVirtualTokens = invariant / newVirtualSol;
+  const tokensReceived = virtualTokens - newVirtualTokens;
+
+  console.log(`Initial buy: ${solAmount} SOL -> ${tokensReceived.toFixed(0)} tokens`);
+
+  const connection = getConnection();
+  const mintPubkey = new PublicKey(mint);
+  const creatorPubkey = new PublicKey(creator);
+
+  const platformATA = await getAssociatedTokenAddress(mintPubkey, PLATFORM_WALLET.publicKey);
+  const creatorATA = await getAssociatedTokenAddress(mintPubkey, creatorPubkey);
+
+  const transaction = new Transaction();
+
+  // Create creator's ATA if it doesn't exist
+  const creatorATAInfo = await connection.getAccountInfo(creatorATA);
+  if (!creatorATAInfo) {
+    transaction.add(
+      createAssociatedTokenAccountInstruction(
+        PLATFORM_WALLET.publicKey,
+        creatorATA,
+        creatorPubkey,
+        mintPubkey
+      )
+    );
+  }
+
+  // Transfer tokens from platform to creator
+  const { createTransferInstruction } = await import('@solana/spl-token');
+  transaction.add(
+    createTransferInstruction(
+      platformATA,
+      creatorATA,
+      PLATFORM_WALLET.publicKey,
+      BigInt(Math.floor(tokensReceived * (10 ** TOKEN_DECIMALS)))
+    )
+  );
+
+  const signature = await sendAndConfirmTransaction(
+    connection,
+    transaction,
+    [PLATFORM_WALLET],
+    { commitment: 'confirmed' }
+  );
+
+  console.log(`✅ Initial buy complete: ${signature}`);
+
+  return { signature, tokensReceived };
 }
 
 /**
@@ -425,9 +571,8 @@ export async function completeBuyTransaction(
   const tokenTx = new Transaction();
   
   // Create buyer's ATA if needed
-  try {
-    await connection.getAccountInfo(buyerATA);
-  } catch {
+  const buyerATAInfo = await connection.getAccountInfo(buyerATA);
+  if (!buyerATAInfo) {
     tokenTx.add(
       createAssociatedTokenAccountInstruction(
         PLATFORM_WALLET.publicKey,

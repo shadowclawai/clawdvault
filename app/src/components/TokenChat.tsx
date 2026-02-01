@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 interface ChatMessage {
   id: string;
   sender: string;
-  sender_name?: string;
+  senderName: string | null;
   message: string;
-  reply_to?: string;
-  created_at: string;
+  replyTo: string | null;
+  createdAt: string;
 }
 
 interface TokenChatProps {
@@ -16,34 +16,37 @@ interface TokenChatProps {
   tokenSymbol: string;
 }
 
+function formatTimeAgo(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  
+  if (seconds < 60) return 'just now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
+}
+
+function shortenAddress(address: string): string {
+  if (address === 'anonymous') return '🐺 anon';
+  if (address.length <= 10) return address;
+  return `${address.slice(0, 4)}...${address.slice(-4)}`;
+}
+
 export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [username, setUsername] = useState('');
-  const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Load username from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem('clawdvault_username');
-    if (saved) setUsername(saved);
-  }, []);
-
-  // Save username to localStorage
-  useEffect(() => {
-    if (username) {
-      localStorage.setItem('clawdvault_username', username);
-    }
-  }, [username]);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Fetch messages
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     try {
       const res = await fetch(`/api/chat?mint=${mint}&limit=100`);
       const data = await res.json();
-      if (data.messages) {
+      if (data.success) {
         setMessages(data.messages);
       }
     } catch (err) {
@@ -51,139 +54,133 @@ export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [mint]);
 
-  // Initial fetch and polling
+  // Initial load and polling
   useEffect(() => {
     fetchMessages();
     
     // Poll for new messages every 5 seconds
-    pollIntervalRef.current = setInterval(fetchMessages, 5000);
-    
-    return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-      }
-    };
-  }, [mint]);
+    const interval = setInterval(fetchMessages, 5000);
+    return () => clearInterval(interval);
+  }, [fetchMessages]);
 
-  // Auto-scroll to bottom
+  // Scroll to bottom on new messages
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages]);
 
-  const handleSend = async (e: React.FormEvent) => {
+  // Try to connect to Phantom wallet
+  const connectWallet = async () => {
+    try {
+      // @ts-ignore - Phantom types
+      const provider = window?.phantom?.solana;
+      if (provider?.isPhantom) {
+        const response = await provider.connect();
+        setWalletAddress(response.publicKey.toString());
+      } else {
+        setError('Phantom wallet not found');
+      }
+    } catch (err) {
+      console.error('Wallet connection error:', err);
+    }
+  };
+
+  // Send message
+  const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || sending) return;
 
     setSending(true);
+    setError('');
+
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           mint,
+          sender: walletAddress || 'anonymous',
           message: newMessage.trim(),
-          sender: 'anonymous',
-          sender_name: username || 'Anon',
         }),
       });
 
       const data = await res.json();
+      
       if (data.success) {
-        setMessages((prev) => [...prev, data.message]);
+        setMessages(prev => [...prev, data.message]);
         setNewMessage('');
+      } else {
+        setError(data.error || 'Failed to send');
       }
     } catch (err) {
-      console.error('Failed to send message:', err);
+      setError('Network error');
     } finally {
       setSending(false);
     }
   };
 
-  const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    if (date.toDateString() === today.toDateString()) {
-      return 'Today';
-    } else if (date.toDateString() === yesterday.toDateString()) {
-      return 'Yesterday';
-    }
-    return date.toLocaleDateString();
-  };
-
-  // Group messages by date
-  const groupedMessages = messages.reduce((groups, msg) => {
-    const date = formatDate(msg.created_at);
-    if (!groups[date]) groups[date] = [];
-    groups[date].push(msg);
-    return groups;
-  }, {} as Record<string, ChatMessage[]>);
-
   return (
-    <div className="bg-gray-800/50 rounded-xl overflow-hidden flex flex-col h-[400px]">
+    <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden flex flex-col" style={{ height: '400px' }}>
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
+      <div className="bg-gray-800/50 px-4 py-3 border-b border-gray-800 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span>💬</span>
-          <span className="text-white font-medium">${tokenSymbol} Chat</span>
+          <span className="text-lg">💬</span>
+          <span className="font-medium text-white">${tokenSymbol} Chat</span>
+          <span className="text-gray-500 text-sm">({messages.length})</span>
         </div>
-        <div className="flex items-center gap-2 text-xs text-gray-500">
-          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          Live
-        </div>
+        {!walletAddress && (
+          <button
+            onClick={connectWallet}
+            className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1 rounded-lg transition"
+          >
+            Connect Wallet
+          </button>
+        )}
+        {walletAddress && (
+          <span className="text-xs text-green-400">
+            ✓ {shortenAddress(walletAddress)}
+          </span>
+        )}
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div 
+        ref={chatContainerRef}
+        className="flex-1 overflow-y-auto p-4 space-y-3"
+      >
         {loading ? (
-          <div className="text-gray-500 text-center py-8">Loading chat...</div>
+          <div className="flex items-center justify-center h-full text-gray-500">
+            <div className="animate-spin w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full" />
+          </div>
         ) : messages.length === 0 ? (
-          <div className="text-gray-500 text-center py-8">
-            <div className="text-3xl mb-2">🦗</div>
-            <div>No messages yet. Be the first!</div>
+          <div className="flex flex-col items-center justify-center h-full text-gray-500">
+            <div className="text-4xl mb-2">🐺</div>
+            <div>No messages yet</div>
+            <div className="text-sm">Be the first to chat!</div>
           </div>
         ) : (
-          Object.entries(groupedMessages).map(([date, msgs]) => (
-            <div key={date}>
-              {/* Date separator */}
-              <div className="flex items-center gap-2 my-4">
-                <div className="flex-1 h-px bg-gray-700" />
-                <span className="text-xs text-gray-500">{date}</span>
-                <div className="flex-1 h-px bg-gray-700" />
-              </div>
-
-              {/* Messages for this date */}
-              {msgs.map((msg) => (
-                <div key={msg.id} className="mb-3">
-                  <div className="flex items-start gap-2">
-                    <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                      {(msg.sender_name || 'A')[0].toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-orange-400 font-medium text-sm">
-                          {msg.sender_name || 'Anon'}
-                        </span>
-                        <span className="text-gray-600 text-xs">
-                          {formatTime(msg.created_at)}
-                        </span>
-                      </div>
-                      <p className="text-gray-300 text-sm break-words">
-                        {msg.message}
-                      </p>
-                    </div>
+          messages.map((msg) => (
+            <div key={msg.id} className="group">
+              <div className="flex items-start gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    <span className={`font-medium text-sm ${
+                      msg.sender === 'anonymous' 
+                        ? 'text-gray-400' 
+                        : 'text-orange-400'
+                    }`}>
+                      {msg.senderName || shortenAddress(msg.sender)}
+                    </span>
+                    <span className="text-gray-600 text-xs">
+                      {formatTimeAgo(new Date(msg.createdAt))}
+                    </span>
                   </div>
+                  <p className="text-gray-300 text-sm break-words">{msg.message}</p>
                 </div>
-              ))}
+              </div>
             </div>
           ))
         )}
@@ -191,38 +188,32 @@ export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSend} className="p-3 border-t border-gray-700">
-        {/* Username input (collapsed) */}
-        <div className="flex gap-2 mb-2">
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="Your name"
-            maxLength={20}
-            className="w-24 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-xs placeholder-gray-500 focus:border-orange-500 focus:outline-none"
-          />
-          <div className="text-gray-500 text-xs self-center">
-            {username ? `Chatting as ${username}` : 'Anonymous'}
-          </div>
-        </div>
-
+      <form onSubmit={sendMessage} className="p-3 border-t border-gray-800">
+        {error && (
+          <div className="text-red-400 text-xs mb-2">{error}</div>
+        )}
         <div className="flex gap-2">
           <input
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            placeholder={`Message $${tokenSymbol}...`}
+            placeholder={walletAddress ? "Type a message..." : "Chat as anon..."}
             maxLength={500}
-            className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none"
+            className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:border-orange-500 focus:outline-none"
           />
           <button
             type="submit"
             disabled={!newMessage.trim() || sending}
-            className="bg-orange-500 hover:bg-orange-400 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition font-medium"
+            className="bg-orange-500 hover:bg-orange-400 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-medium transition"
           >
             {sending ? '...' : 'Send'}
           </button>
+        </div>
+        <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
+          <span>{newMessage.length}/500</span>
+          {!walletAddress && (
+            <span>Connect wallet to show your address</span>
+          )}
         </div>
       </form>
     </div>

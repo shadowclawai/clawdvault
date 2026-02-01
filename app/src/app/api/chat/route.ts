@@ -1,98 +1,98 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/prisma';
 
-export const dynamic = 'force-dynamic';
-
-// GET - Fetch messages for a token
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const mint = searchParams.get('mint');
-  const limit = parseInt(searchParams.get('limit') || '50');
-  const before = searchParams.get('before'); // For pagination
-
-  if (!mint) {
-    return NextResponse.json({ error: 'mint is required' }, { status: 400 });
-  }
-
+// GET /api/chat?mint=xxx - Get chat messages for a token
+export async function GET(request: NextRequest) {
   try {
-    const where: any = { tokenMint: mint };
-    if (before) {
-      where.createdAt = { lt: new Date(before) };
-    }
+    const searchParams = request.nextUrl.searchParams;
+    const mint = searchParams.get('mint');
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const before = searchParams.get('before'); // cursor for pagination
 
-    const messages = await db().chatMessage.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-    });
-
-    // Reverse so oldest first in the returned array
-    return NextResponse.json({
-      messages: messages.reverse().map((m) => ({
-        id: m.id,
-        sender: m.sender,
-        sender_name: m.senderName,
-        message: m.message,
-        reply_to: m.replyTo,
-        created_at: m.createdAt.toISOString(),
-      })),
-    });
-  } catch (error) {
-    console.error('Error fetching chat:', error);
-    return NextResponse.json({ error: 'Failed to fetch messages' }, { status: 500 });
-  }
-}
-
-// POST - Send a message
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const { mint, message, sender, sender_name, reply_to } = body;
-
-    if (!mint || !message) {
+    if (!mint) {
       return NextResponse.json(
-        { error: 'mint and message are required' },
+        { success: false, error: 'Missing mint parameter' },
         { status: 400 }
       );
     }
 
-    // Basic validation
+    const messages = await db().chatMessage.findMany({
+      where: {
+        tokenMint: mint,
+        ...(before ? { createdAt: { lt: new Date(before) } } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+
+    // Return in chronological order (oldest first)
+    return NextResponse.json({
+      success: true,
+      messages: messages.reverse(),
+      hasMore: messages.length === limit,
+    });
+  } catch (error) {
+    console.error('Error fetching chat:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch chat messages' },
+      { status: 500 }
+    );
+  }
+}
+
+// POST /api/chat - Send a chat message
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { mint, sender, senderName, message, replyTo } = body;
+
+    if (!mint || !message) {
+      return NextResponse.json(
+        { success: false, error: 'Missing mint or message' },
+        { status: 400 }
+      );
+    }
+
+    // Validate message length
     if (message.length > 500) {
       return NextResponse.json(
-        { error: 'Message too long (max 500 chars)' },
+        { success: false, error: 'Message too long (max 500 chars)' },
         { status: 400 }
       );
     }
 
     // Check if token exists
-    const token = await db().token.findUnique({ where: { mint } });
+    const token = await db().token.findUnique({
+      where: { mint },
+    });
+
     if (!token) {
-      return NextResponse.json({ error: 'Token not found' }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: 'Token not found' },
+        { status: 404 }
+      );
     }
 
+    // Create message
     const chatMessage = await db().chatMessage.create({
       data: {
         tokenMint: mint,
         sender: sender || 'anonymous',
-        senderName: sender_name || 'Anon',
+        senderName: senderName || null,
         message: message.trim(),
-        replyTo: reply_to,
+        replyTo: replyTo || null,
       },
     });
 
     return NextResponse.json({
       success: true,
-      message: {
-        id: chatMessage.id,
-        sender: chatMessage.sender,
-        sender_name: chatMessage.senderName,
-        message: chatMessage.message,
-        reply_to: chatMessage.replyTo,
-        created_at: chatMessage.createdAt.toISOString(),
-      },
+      message: chatMessage,
     });
   } catch (error) {
-    console.error('Error sending message:', error);
-    return NextResponse.json({ error: 'Failed to send message' }, { status: 500 });
+    console.error('Error posting chat message:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to post message' },
+      { status: 500 }
+    );
   }
 }

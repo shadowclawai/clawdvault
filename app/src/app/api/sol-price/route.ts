@@ -26,32 +26,7 @@ export async function GET() {
   // Fetch fresh price - try multiple sources
   console.log('[SOL Price] Cache expired, fetching fresh price...');
   
-  // Try Jupiter first
-  try {
-    console.log('[SOL Price] Trying Jupiter...');
-    const res = await fetch('https://price.jup.ag/v6/price?ids=SOL', {
-      signal: AbortSignal.timeout(5000)
-    });
-    const data = await res.json();
-    
-    if (data.data?.SOL?.price) {
-      cachedPrice = data.data.SOL.price;
-      lastFetch = now;
-      console.log(`[SOL Price] Jupiter success: $${cachedPrice.toFixed(2)}`);
-      return NextResponse.json({ 
-        price: cachedPrice, 
-        valid: true,
-        cached: false,
-        source: 'jupiter',
-        age: 0
-      });
-    }
-    console.warn('[SOL Price] Jupiter response missing price');
-  } catch (err) {
-    console.warn('[SOL Price] Jupiter failed:', (err as Error).message);
-  }
-
-  // Try CoinGecko as fallback
+  // Try CoinGecko first (more reliable)
   try {
     console.log('[SOL Price] Trying CoinGecko...');
     const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd', {
@@ -74,6 +49,31 @@ export async function GET() {
     console.warn('[SOL Price] CoinGecko response missing price');
   } catch (err) {
     console.warn('[SOL Price] CoinGecko failed:', (err as Error).message);
+  }
+
+  // Try Jupiter as fallback
+  try {
+    console.log('[SOL Price] Trying Jupiter...');
+    const res = await fetch('https://price.jup.ag/v6/price?ids=SOL', {
+      signal: AbortSignal.timeout(5000)
+    });
+    const data = await res.json();
+    
+    if (data.data?.SOL?.price) {
+      cachedPrice = data.data.SOL.price;
+      lastFetch = now;
+      console.log(`[SOL Price] Jupiter success: $${cachedPrice.toFixed(2)}`);
+      return NextResponse.json({ 
+        price: cachedPrice, 
+        valid: true,
+        cached: false,
+        source: 'jupiter',
+        age: 0
+      });
+    }
+    console.warn('[SOL Price] Jupiter response missing price');
+  } catch (err) {
+    console.warn('[SOL Price] Jupiter failed:', (err as Error).message);
   }
 
   // If we have a recent-ish cached price, use it but mark as potentially stale

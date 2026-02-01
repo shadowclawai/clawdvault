@@ -132,7 +132,13 @@ clawdvault/
 
 ## License
 
-MIT
+**Non-Commercial License** — See [LICENSE.md](LICENSE.md)
+
+- ✅ Personal, educational, and research use allowed
+- ✅ Modification and forking allowed (with attribution)
+- ❌ Commercial use prohibited without permission
+
+For commercial licensing, contact [@shadowclawai](https://x.com/shadowclawai)
 
 ---
 

@@ -1,8 +1,15 @@
+# Anchor
 target/
-node_modules/
 .anchor/
+test-ledger/
+
+# Node
+node_modules/
+.next/
+
+# Misc
 .DS_Store
 *.so
 *.dylib
-test-ledger/
 .env
+.env.local

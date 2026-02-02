@@ -88,7 +88,6 @@ pub mod clawdvault {
         curve.created_at = Clock::get()?.unix_timestamp;
         curve.bump = ctx.bumps.bonding_curve;
         curve.sol_vault_bump = ctx.bumps.sol_vault;
-        curve.token_vault_bump = ctx.bumps.token_vault;
         
         // Mint total supply to token vault (curve holds all tokens initially)
         let mint_key = ctx.accounts.mint.key();
@@ -436,7 +435,6 @@ pub struct BondingCurve {
     pub created_at: i64,
     pub bump: u8,
     pub sol_vault_bump: u8,
-    pub token_vault_bump: u8,
 }
 
 impl BondingCurve {
@@ -451,8 +449,7 @@ impl BondingCurve {
         1 + // graduated
         8 + // created_at
         1 + // bump
-        1 + // sol_vault_bump
-        1;  // token_vault_bump
+        1;  // sol_vault_bump
 }
 
 // ============================================================================

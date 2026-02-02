@@ -3,7 +3,7 @@ use anchor_lang::system_program;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer, MintTo};
 use anchor_spl::associated_token::AssociatedToken;
 
-declare_id!("CLawdVau1tSoLaNa1111111111111111111111111");
+declare_id!("GMdG56oR3Qpc8NT6TwAtwdwNggxRADn6VAYbotLF1aM");
 
 // ============================================================================
 // CONSTANTS

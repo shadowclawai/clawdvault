@@ -21,7 +21,7 @@ import {
 
 // Program ID - UPDATE AFTER DEPLOYMENT
 // Placeholder until real program deployed (use anchor build keypair after deploy)
-export const PROGRAM_ID = new PublicKey('11111111111111111111111111111111');
+export const PROGRAM_ID = new PublicKey('GMdG56oR3Qpc8NT6TwAtwdwNggxRADn6VAYbotLF1aM');
 
 // Seeds
 const CONFIG_SEED = Buffer.from('config');

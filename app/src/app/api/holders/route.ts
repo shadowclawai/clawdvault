@@ -110,9 +110,15 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Error fetching holders:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch holders' },
-      { status: 500 }
-    );
+    // Return empty holders on RPC error (rate limiting, etc)
+    // Frontend will use client-side RPC as fallback
+    return NextResponse.json({
+      success: true,
+      mint,
+      holders: [],
+      totalSupply: 1_000_000_000,
+      circulatingSupply: 0,
+      rpcError: true,
+    });
   }
 }

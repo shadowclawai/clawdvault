@@ -1,21 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/prisma';
 import { extractAuth, verifyWalletAuth } from '@/lib/auth';
+import { jwtVerify } from 'jose';
 
 export const dynamic = 'force-dynamic';
+
+// JWT secret for session verification
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || 'clawdvault-session-secret-change-in-production'
+);
+
+// Verify session token
+async function verifySession(request: NextRequest): Promise<string | null> {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) return null;
+  
+  try {
+    const token = authHeader.slice(7);
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+    return payload.wallet as string || null;
+  } catch {
+    return null;
+  }
+}
 
 // Add reaction
 export async function POST(req: NextRequest) {
   try {
-    // Extract auth headers
-    const auth = extractAuth(req);
-    if (!auth) {
-      return NextResponse.json(
-        { success: false, error: 'Missing authentication headers (X-Wallet, X-Signature)' },
-        { status: 401 }
-      );
-    }
-
     const { messageId, emoji } = await req.json();
 
     if (!messageId || !emoji) {
@@ -25,16 +36,29 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verify signature
-    const signedData = { messageId, emoji };
-    if (!verifyWalletAuth(auth.wallet, auth.signature, 'react', signedData)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid signature' },
-        { status: 401 }
-      );
-    }
+    // Try session token first
+    let wallet = await verifySession(req);
+    
+    // Fall back to signature auth
+    if (!wallet) {
+      const auth = extractAuth(req);
+      if (!auth) {
+        return NextResponse.json(
+          { success: false, error: 'Authentication required' },
+          { status: 401 }
+        );
+      }
 
-    const wallet = auth.wallet;
+      // Verify signature
+      const signedData = { messageId, emoji };
+      if (!verifyWalletAuth(auth.wallet, auth.signature, 'react', signedData)) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid signature' },
+          { status: 401 }
+        );
+      }
+      wallet = auth.wallet;
+    }
 
     // Check message exists
     const message = await db().chatMessage.findUnique({

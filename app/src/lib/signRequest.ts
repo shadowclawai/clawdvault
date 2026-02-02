@@ -51,8 +51,92 @@ export async function signRequest(
   }
 }
 
+const SESSION_KEY = 'clawdvault_session';
+
 /**
- * Make an authenticated POST request
+ * Get stored session token
+ */
+export function getSessionToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  const stored = localStorage.getItem(SESSION_KEY);
+  if (!stored) return null;
+  
+  try {
+    const { token, expiresAt } = JSON.parse(stored);
+    if (new Date(expiresAt) < new Date()) {
+      localStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+    return token;
+  } catch {
+    localStorage.removeItem(SESSION_KEY);
+    return null;
+  }
+}
+
+/**
+ * Store session token
+ */
+export function setSessionToken(token: string, expiresIn: number): void {
+  if (typeof window === 'undefined') return;
+  const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ token, expiresAt }));
+}
+
+/**
+ * Clear session token
+ */
+export function clearSessionToken(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(SESSION_KEY);
+}
+
+/**
+ * Create a new session (requires signing once)
+ */
+export async function createSession(wallet: WalletInterface): Promise<string | null> {
+  const signedData = { action: 'create_session' };
+  const authHeaders = await signRequest(wallet, 'session', signedData);
+  
+  if (!authHeaders) {
+    return null;
+  }
+
+  try {
+    const res = await fetch('/api/auth/session', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders,
+      },
+    });
+    
+    const data = await res.json();
+    if (data.success && data.token) {
+      setSessionToken(data.token, data.expiresIn);
+      return data.token;
+    }
+    return null;
+  } catch (error) {
+    console.error('Failed to create session:', error);
+    return null;
+  }
+}
+
+/**
+ * Get or create session token
+ */
+export async function getOrCreateSession(wallet: WalletInterface): Promise<string | null> {
+  // Check for existing valid session
+  const existing = getSessionToken();
+  if (existing) return existing;
+  
+  // Create new session
+  return createSession(wallet);
+}
+
+/**
+ * Make an authenticated POST request (tries session first, falls back to signature)
  */
 export async function authenticatedPost(
   wallet: WalletInterface,
@@ -60,6 +144,22 @@ export async function authenticatedPost(
   action: string,
   data: Record<string, unknown>
 ): Promise<Response> {
+  // For chat-related actions, try session auth first
+  if (action === 'chat' || action === 'react') {
+    const sessionToken = await getOrCreateSession(wallet);
+    if (sessionToken) {
+      return fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`,
+        },
+        body: JSON.stringify(data),
+      });
+    }
+  }
+  
+  // Fall back to per-request signing
   const authHeaders = await signRequest(wallet, action, data);
   
   if (!authHeaders) {

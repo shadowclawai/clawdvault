@@ -1,6 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/prisma';
 import { extractAuth, verifyWalletAuth } from '@/lib/auth';
+import { jwtVerify } from 'jose';
+
+// JWT secret for session verification
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || 'clawdvault-session-secret-change-in-production'
+);
+
+// Verify session token and return wallet
+async function verifySession(request: NextRequest): Promise<string | null> {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) return null;
+  
+  try {
+    const token = authHeader.slice(7);
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+    return payload.wallet as string || null;
+  } catch {
+    return null;
+  }
+}
 
 // GET /api/chat?mint=xxx - Get chat messages for a token
 export async function GET(request: NextRequest) {
@@ -82,15 +102,6 @@ export async function GET(request: NextRequest) {
 // POST /api/chat - Send a chat message
 export async function POST(request: NextRequest) {
   try {
-    // Extract auth headers
-    const auth = extractAuth(request);
-    if (!auth) {
-      return NextResponse.json(
-        { success: false, error: 'Missing authentication headers (X-Wallet, X-Signature)' },
-        { status: 401 }
-      );
-    }
-
     const body = await request.json();
     const { mint, message, replyTo } = body;
 
@@ -101,16 +112,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify signature - the signed data includes mint and message
-    const signedData = { mint, message: message.trim(), replyTo: replyTo || null };
-    if (!verifyWalletAuth(auth.wallet, auth.signature, 'chat', signedData)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid signature' },
-        { status: 401 }
-      );
-    }
+    // Try session token first (Bearer token in Authorization header)
+    let sender = await verifySession(request);
+    
+    // Fall back to per-message signature auth
+    if (!sender) {
+      const auth = extractAuth(request);
+      if (!auth) {
+        return NextResponse.json(
+          { success: false, error: 'Authentication required (session token or signature)' },
+          { status: 401 }
+        );
+      }
 
-    const sender = auth.wallet;
+      // Verify signature - the signed data includes mint and message
+      const signedData = { mint, message: message.trim(), replyTo: replyTo || null };
+      if (!verifyWalletAuth(auth.wallet, auth.signature, 'chat', signedData)) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid signature' },
+          { status: 401 }
+        );
+      }
+      sender = auth.wallet;
+    }
 
     // Validate message length
     if (message.length > 500) {

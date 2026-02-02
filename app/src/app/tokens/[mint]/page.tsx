@@ -6,6 +6,7 @@ import { Token, Trade, TradeResponse } from '@/lib/types';
 import ChatAndTrades from '@/components/ChatAndTrades';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import ExplorerLink from '@/components/ExplorerLink';
 import { useWallet } from '@/contexts/WalletContext';
 import { fetchHoldersClient, fetchBalanceClient } from '@/lib/solana-client';
 
@@ -36,6 +37,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
     price: number;
     bondingCurveSol: number;
   } | null>(null);
+  const [creatorUsername, setCreatorUsername] = useState<string | null>(null);
 
   // Fetch token holdings for connected wallet (client-side RPC)
   const fetchTokenBalance = useCallback(async () => {
@@ -101,6 +103,20 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
       fetchHolders(token.creator);
     }
   }, [token?.creator, fetchHolders]);
+
+  // Fetch creator's username from user_profiles
+  useEffect(() => {
+    if (token?.creator) {
+      fetch(`/api/user/profile?wallet=${token.creator}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.username) {
+            setCreatorUsername(data.username);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [token?.creator]);
 
   const fetchOnChainStats = async () => {
     try {
@@ -463,7 +479,13 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                 )}
               </div>
               <div className="text-gray-400 mb-1">{token.name}</div>
-              <div className="text-gray-500 text-sm">Created by {token.creator_name || 'Anonymous'}</div>
+              <div className="text-gray-500 text-sm">
+                Created by {creatorUsername ? (
+                  <ExplorerLink address={token.creator} label={creatorUsername} />
+                ) : (
+                  <ExplorerLink address={token.creator} />
+                )}
+              </div>
               {token.description && (
                 <p className="text-gray-400 mt-2">{token.description}</p>
               )}
@@ -582,17 +604,28 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
               <div className="bg-gray-800/50 rounded-xl p-4">
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-gray-500 text-sm">Mint Address</div>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(token.mint);
-                      setCopied(true);
-                      setTimeout(() => setCopied(false), 2000);
-                    }}
-                    className="text-gray-400 hover:text-white text-sm flex items-center gap-1 transition"
-                    title="Copy to clipboard"
-                  >
-                    {copied ? '✅ Copied!' : '📋 Copy'}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={`https://explorer.solana.com/address/${token.mint}?cluster=${process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet'}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-gray-400 hover:text-cyan-400 text-sm transition"
+                      title="View on Explorer"
+                    >
+                      🔍
+                    </a>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(token.mint);
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      }}
+                      className="text-gray-400 hover:text-white text-sm flex items-center gap-1 transition"
+                      title="Copy to clipboard"
+                    >
+                      {copied ? '✅ Copied!' : '📋 Copy'}
+                    </button>
+                  </div>
                 </div>
                 <div className="font-mono text-sm text-orange-400 break-all">{token.mint}</div>
               </div>
@@ -858,13 +891,23 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                       </div>
                       <div className="flex-1 min-w-0">
                         {holder.label ? (
-                          <div className={`font-medium text-sm ${
-                            holder.label === 'Bonding Curve' ? 'text-orange-400' : 'text-blue-400'
-                          }`}>{holder.label}</div>
+                          <a
+                            href={`https://explorer.solana.com/address/${holder.address}?cluster=${process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet'}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`font-medium text-sm hover:underline ${
+                              holder.label === 'Liquidity Pool' ? 'text-orange-400' : 'text-blue-400'
+                            }`}
+                          >{holder.label}</a>
                         ) : (
-                          <div className="text-gray-300 font-mono text-sm truncate">
+                          <a
+                            href={`https://explorer.solana.com/address/${holder.address}?cluster=${process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet'}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-gray-300 hover:text-cyan-400 font-mono text-sm truncate hover:underline"
+                          >
                             {holder.address.slice(0, 6)}...{holder.address.slice(-4)}
-                          </div>
+                          </a>
                         )}
                         <div className="text-gray-500 text-xs">{formatNumber(holder.balance)} tokens</div>
                       </div>
@@ -875,7 +918,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                         >
                           <div 
                             className={`h-full rounded-full ${
-                              holder.label === 'Bonding Curve' ? 'bg-orange-500' : 
+                              holder.label === 'Liquidity Pool' ? 'bg-orange-500' : 
                               holder.label === 'Creator (dev)' ? 'bg-blue-500' : 'bg-purple-500'
                             }`}
                             style={{ width: `${Math.min(holder.percentage, 100)}%` }}

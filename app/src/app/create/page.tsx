@@ -197,6 +197,10 @@ export default function CreatePage() {
               twitter: twitter || undefined,
               telegram: telegram || undefined,
               website: website || undefined,
+              initialBuy: prepareData.initialBuy ? {
+                solAmount: prepareData.initialBuy.sol,
+                estimatedTokens: prepareData.initialBuy.estimatedTokens,
+              } : undefined,
             }),
           });
           

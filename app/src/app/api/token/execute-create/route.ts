@@ -1,8 +1,22 @@
 import { NextResponse } from 'next/server';
 import { Connection, clusterApiUrl, Transaction } from '@solana/web3.js';
 import { createToken } from '@/lib/db';
+import { db } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
+
+// Look up username from user_profiles
+async function getUsername(wallet: string): Promise<string | null> {
+  try {
+    const profile = await db().userProfile.findUnique({
+      where: { wallet },
+      select: { username: true },
+    });
+    return profile?.username || null;
+  } catch {
+    return null;
+  }
+}
 
 // Get connection based on environment
 function getConnection(): Connection {
@@ -22,6 +36,10 @@ interface ExecuteCreateRequest {
   telegram?: string;
   website?: string;
   creatorName?: string;
+  initialBuy?: {              // Initial buy info (if any)
+    solAmount: number;
+    estimatedTokens: number;
+  };
 }
 
 /**
@@ -73,6 +91,9 @@ export async function POST(request: Request) {
     
     console.log(`✅ Token created on-chain: ${signature}`);
     
+    // Look up creator's username from user_profiles
+    const creatorName = body.creatorName || await getUsername(body.creator);
+    
     // Record the token in database
     const token = await createToken({
       mint: body.mint,
@@ -81,7 +102,7 @@ export async function POST(request: Request) {
       description: body.description,
       image: body.image,
       creator: body.creator,
-      creator_name: body.creatorName,
+      creator_name: creatorName,
       twitter: body.twitter,
       telegram: body.telegram,
       website: body.website,
@@ -101,11 +122,50 @@ export async function POST(request: Request) {
       });
     }
     
+    // Record initial buy as a trade if there was one
+    let initialBuyTrade = null;
+    if (body.initialBuy && body.initialBuy.solAmount > 0) {
+      try {
+        const totalFee = body.initialBuy.solAmount * 0.01;
+        const protocolFee = totalFee * 0.5;
+        const creatorFee = totalFee * 0.5;
+        const pricePerToken = body.initialBuy.estimatedTokens > 0 
+          ? body.initialBuy.solAmount / body.initialBuy.estimatedTokens 
+          : 0;
+        
+        initialBuyTrade = await db().trade.create({
+          data: {
+            tokenId: token.id,
+            tokenMint: body.mint,
+            trader: body.creator,
+            tradeType: 'BUY',
+            solAmount: body.initialBuy.solAmount,
+            tokenAmount: body.initialBuy.estimatedTokens,
+            priceSol: pricePerToken,
+            totalFee: totalFee,
+            protocolFee: protocolFee,
+            creatorFee: creatorFee,
+            referrerFee: 0,
+            signature: signature,
+          },
+        });
+        
+        console.log(`📊 Initial buy trade recorded: ${initialBuyTrade.id}`);
+      } catch (tradeErr) {
+        console.error('Warning: Failed to record initial buy trade:', tradeErr);
+      }
+    }
+    
     return NextResponse.json({
       success: true,
       token,
       signature,
       mint: body.mint,
+      initialBuyTrade: initialBuyTrade ? {
+        id: initialBuyTrade.id,
+        solAmount: body.initialBuy?.solAmount,
+        tokenAmount: body.initialBuy?.estimatedTokens,
+      } : null,
       explorer: `https://explorer.solana.com/tx/${signature}?cluster=${
         process.env.SOLANA_NETWORK || 'devnet'
       }`,

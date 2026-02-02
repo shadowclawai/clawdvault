@@ -2,6 +2,7 @@
  * Client-side Solana RPC utilities
  * These run in the browser to avoid rate limiting on our server
  */
+import { PublicKey } from '@solana/web3.js';
 
 // Public RPC endpoints (client can use these directly)
 const RPC_ENDPOINTS = {
@@ -15,7 +16,20 @@ export function getRpcUrl(): string {
   return RPC_ENDPOINTS.devnet;
 }
 
-// Platform wallet (bonding curve) - public info
+// ClawdVault Program ID
+const PROGRAM_ID = new PublicKey('GUyF2TVe32Cid4iGVt2F6wPYDhLSVmTUZBj2974outYM');
+const CURVE_SEED = Buffer.from('bonding_curve');
+
+// Derive bonding curve PDA for a given mint
+function findBondingCurvePDA(mint: PublicKey): PublicKey {
+  const [pda] = PublicKey.findProgramAddressSync(
+    [CURVE_SEED, mint.toBuffer()],
+    PROGRAM_ID
+  );
+  return pda;
+}
+
+// Legacy platform wallet (for old tokens before Anchor)
 export const PLATFORM_WALLET = '3X8b5mRCzvvyVXarimyujxtCZ1Epn22oXVWbzUoxWKRH';
 
 interface TokenHolder {
@@ -82,6 +96,10 @@ export async function fetchHoldersClient(
   });
   const ownersData = await ownersResponse.json();
   
+  // Derive the bonding curve PDA for this mint
+  const mintPubkey = new PublicKey(mint);
+  const bondingCurvePDA = findBondingCurvePDA(mintPubkey).toBase58();
+  
   // Process holders
   const holders: TokenHolder[] = [];
   let bondingCurveBalance = 0;
@@ -97,15 +115,16 @@ export async function fetchHoldersClient(
     const owner = ownerInfo?.result?.value?.data?.parsed?.info?.owner || acc.address;
     
     const percentage = (balance / totalSupply) * 100;
-    const isPlatform = owner === PLATFORM_WALLET;
+    // Check if owner is the bonding curve PDA or legacy platform wallet
+    const isBondingCurve = owner === bondingCurvePDA || owner === PLATFORM_WALLET;
     const isCreator = creator && owner === creator;
     
-    if (isPlatform) {
+    if (isBondingCurve) {
       bondingCurveBalance = balance;
     }
     
     let label: string | undefined;
-    if (isPlatform) label = 'Bonding Curve';
+    if (isBondingCurve) label = 'Liquidity Pool';
     else if (isCreator) label = 'Creator (dev)';
     
     holders.push({ address: owner, balance, percentage, label });

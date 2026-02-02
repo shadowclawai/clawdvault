@@ -75,13 +75,18 @@ export async function POST(request: Request) {
       ? BigInt(Math.floor(body.initialBuy * 1e9)) 
       : BigInt(0);
     
+    // Construct metadata URI - points to our API endpoint
+    // This returns Metaplex-compatible JSON with name, symbol, description, image
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://clawdvault.com';
+    const metadataUri = `${baseUrl}/api/metadata/${mintKeypair.publicKey.toBase58()}`;
+    
     // Build transaction
     const transaction = await client.buildCreateTokenTransaction(
       creatorPubkey,
       mintKeypair,
       body.name,
       body.symbol,
-      body.uri || '',
+      metadataUri,  // Use metadata URI instead of raw image
       initialBuyLamports
     );
     

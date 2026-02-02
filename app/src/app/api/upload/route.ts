@@ -3,7 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 
 // Initialize Supabase client with service role key for storage operations
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
+// Use SUPABASE_URL (server-side, Docker-compatible) not NEXT_PUBLIC_ (browser-side)
+const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -72,14 +73,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
     }
 
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from('token-images')
-      .getPublicUrl(filename);
+    // Get public URL - use browser-accessible URL, not Docker internal
+    const publicSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
+    const publicUrl = `${publicSupabaseUrl}/storage/v1/object/public/token-images/${filename}`;
 
     return NextResponse.json({
       success: true,
-      url: urlData.publicUrl,
+      url: publicUrl,
       filename: filename
     });
 

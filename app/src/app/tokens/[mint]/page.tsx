@@ -589,7 +589,9 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                 </div>
                 <div className="bg-gray-800/50 rounded-xl p-4">
                   <div className="text-gray-500 text-sm mb-1">Holders</div>
-                  <div className="text-amber-400 font-mono text-lg">{token.holders || '--'}</div>
+                  <div className="text-amber-400 font-mono text-lg">
+                    {holders.length > 0 ? holders.length : (token.holders || '--')}
+                  </div>
                 </div>
               </div>
 

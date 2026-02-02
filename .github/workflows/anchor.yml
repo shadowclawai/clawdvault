@@ -7,6 +7,7 @@ on:
       - 'programs/**'
       - 'Anchor.toml'
       - 'Cargo.toml'
+      - '.github/workflows/anchor.yml'
   workflow_dispatch:
     inputs:
       network:
@@ -45,8 +46,10 @@ jobs:
 
       - name: Install Solana
         run: |
-          curl -sSfL "https://release.solana.com/v${{ env.SOLANA_VERSION }}/solana-release-x86_64-unknown-linux-gnu.tar.bz2" | tar xjf - -C $HOME
-          echo "$HOME/solana-release/bin" >> $GITHUB_PATH
+          SOLANA_RELEASE="v${{ env.SOLANA_VERSION }}"
+          sh -c "$(curl -sSfL https://release.solana.com/${SOLANA_RELEASE}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+        shell: bash
 
       - name: Install Anchor
         run: |
@@ -54,16 +57,12 @@ jobs:
 
       - name: Verify Tools
         run: |
-          echo "PATH: $PATH"
-          which solana || echo "solana not found"
-          which anchor || echo "anchor not found"
           solana --version
           anchor --version
           rustc --version
 
       - name: Build Program
-        run: |
-          anchor build
+        run: anchor build
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
@@ -91,8 +90,10 @@ jobs:
 
       - name: Install Solana
         run: |
-          curl -sSfL "https://release.solana.com/v${{ env.SOLANA_VERSION }}/solana-release-x86_64-unknown-linux-gnu.tar.bz2" | tar xjf - -C $HOME
-          echo "$HOME/solana-release/bin" >> $GITHUB_PATH
+          SOLANA_RELEASE="v${{ env.SOLANA_VERSION }}"
+          sh -c "$(curl -sSfL https://release.solana.com/${SOLANA_RELEASE}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+        shell: bash
 
       - name: Setup Wallet
         run: |
@@ -101,9 +102,7 @@ jobs:
           solana config set --url devnet
 
       - name: Deploy
-        run: |
-          solana program deploy target/deploy/clawdvault.so --keypair target/deploy/clawdvault-keypair.json
+        run: solana program deploy target/deploy/clawdvault.so --keypair target/deploy/clawdvault-keypair.json
 
       - name: Output Program ID
-        run: |
-          echo "Program ID: $(solana-keygen pubkey target/deploy/clawdvault-keypair.json)"
+        run: echo "Program ID: $(solana-keygen pubkey target/deploy/clawdvault-keypair.json)"

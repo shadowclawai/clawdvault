@@ -560,9 +560,14 @@ export default function ChatAndTrades({ mint, tokenSymbol, trades, onTradesUpdat
                   {/* Trade Details */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-gray-300 font-mono text-sm">
+                      <a 
+                        href={`https://explorer.solana.com/address/${trade.trader}?cluster=devnet`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-gray-300 hover:text-cyan-400 font-mono text-sm hover:underline"
+                      >
                         {shortenAddress(trade.trader)}
-                      </span>
+                      </a>
                       <span className={`text-xs font-medium ${
                         trade.type === 'buy' ? 'text-green-400' : 'text-red-400'
                       }`}>
@@ -584,9 +589,22 @@ export default function ChatAndTrades({ mint, tokenSymbol, trades, onTradesUpdat
                     </div>
                   </div>
                   
-                  {/* Timestamp */}
-                  <div className="text-gray-500 text-xs text-right flex-shrink-0">
-                    {formatTimeAgo(new Date(trade.executedAt))}
+                  {/* Timestamp & Tx Link */}
+                  <div className="text-right flex-shrink-0 flex items-center gap-2">
+                    <span className="text-gray-500 text-xs">
+                      {formatTimeAgo(new Date(trade.executedAt))}
+                    </span>
+                    {trade.signature && (
+                      <a
+                        href={`https://explorer.solana.com/tx/${trade.signature}?cluster=devnet`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-gray-500 hover:text-cyan-400 transition"
+                        title="View transaction"
+                      >
+                        🔗
+                      </a>
+                    )}
                   </div>
                 </div>
               ))}

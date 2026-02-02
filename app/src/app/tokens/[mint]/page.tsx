@@ -671,7 +671,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
             {/* Right Sidebar - order-1 on mobile so trade panel appears first */}
             <div className="space-y-6 order-1 lg:order-2">
               {/* Trade Panel */}
-              <div className="bg-gray-800/50 rounded-xl p-6 h-fit sticky top-6">
+              <div className="bg-gray-800/50 rounded-xl p-6 h-fit lg:sticky lg:top-6">
               <h3 className="text-white font-semibold mb-4">Trade</h3>
 
               {token.graduated && (

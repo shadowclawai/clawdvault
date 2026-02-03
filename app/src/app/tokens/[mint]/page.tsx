@@ -42,6 +42,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
     price: number;
     bondingCurveSol: number;
   } | null>(null);
+  const [candlePrice, setCandlePrice] = useState<number>(0);
   const [creatorUsername, setCreatorUsername] = useState<string | null>(null);
 
   // Fetch token holdings for connected wallet (client-side RPC)
@@ -258,22 +259,21 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
     }
   }, [token, amount, tradeType]);
 
-  // Calculate price impact using on-chain price
+  // Calculate price impact using candle price (source of truth)
   const priceImpact = useMemo(() => {
-    if (!token || !amount || parseFloat(amount) <= 0 || !onChainStats?.price) return 0;
+    if (!token || !amount || parseFloat(amount) <= 0 || candlePrice <= 0) return 0;
     const inputAmount = parseFloat(amount);
-    const currentPrice = onChainStats.price;
     
     if (tradeType === 'buy') {
-      const expectedTokens = inputAmount / currentPrice;
+      const expectedTokens = inputAmount / candlePrice;
       const actualTokens = estimatedOutput?.tokens || 0;
       return ((expectedTokens - actualTokens) / expectedTokens) * 100;
     } else {
-      const expectedSol = inputAmount * currentPrice;
+      const expectedSol = inputAmount * candlePrice;
       const actualSol = estimatedOutput?.sol || 0;
       return ((expectedSol - actualSol) / expectedSol) * 100;
     }
-  }, [token, amount, tradeType, estimatedOutput, onChainStats]);
+  }, [token, amount, tradeType, estimatedOutput, candlePrice]);
 
   // Contract now caps sells at available liquidity, so max is just token balance
   const maxSellableTokens = tokenBalance;
@@ -623,6 +623,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                 volume24h={token.volume_24h || 0}
                 solPrice={solPrice}
                 holders={holders.length > 0 ? holders.length : (token.holders || 0)}
+                onPriceUpdate={setCandlePrice}
               />
             </div>
 
@@ -756,21 +757,19 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                 </div>
               )}
               
-              {/* Token Price */}
+              {/* Token Price (from candles - source of truth) */}
               <div className="bg-gray-700/50 rounded-lg p-3 mb-4">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400">Price</span>
                   <span className="text-white font-mono">
-                    {onChainStats?.price ? formatPrice(onChainStats.price) : token.price_sol ? formatPrice(token.price_sol) : '--'} SOL
+                    {candlePrice > 0 ? formatPrice(candlePrice) : '--'} SOL
                   </span>
                 </div>
-                {solPrice && (
+                {solPrice && candlePrice > 0 && (
                   <div className="flex justify-between text-sm mt-1">
                     <span className="text-gray-400">USD</span>
                     <span className="text-green-400 font-mono">
-                      ${onChainStats?.price && solPrice 
-                        ? (onChainStats.price * solPrice).toFixed(onChainStats.price * solPrice < 0.01 ? 8 : 4)
-                        : '--'}
+                      ${(candlePrice * solPrice).toFixed(candlePrice * solPrice < 0.01 ? 8 : 4)}
                     </span>
                   </div>
                 )}

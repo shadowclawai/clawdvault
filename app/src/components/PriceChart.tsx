@@ -24,6 +24,8 @@ interface PriceChartProps {
   volume24h?: number;
   solPrice?: number | null;
   holders?: number;
+  // Callback when candle price updates (source of truth)
+  onPriceUpdate?: (price: number) => void;
 }
 
 type ChartType = 'line' | 'candle';
@@ -41,6 +43,7 @@ export default function PriceChart({
   volume24h = 0,
   solPrice = null,
   holders = 0,
+  onPriceUpdate,
 }: PriceChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -127,6 +130,13 @@ export default function PriceChart({
     }
     return 0; // No candles = no price yet
   }, [candles]);
+
+  // Notify parent when price updates (candles = source of truth)
+  useEffect(() => {
+    if (effectivePrice > 0 && onPriceUpdate) {
+      onPriceUpdate(effectivePrice);
+    }
+  }, [effectivePrice, onPriceUpdate]);
 
   // Calculate ATH progress (how close current price is to ATH)
   const athProgress = athPrice > 0 ? (effectivePrice / athPrice) * 100 : 100;

@@ -44,46 +44,76 @@ export default function DocsPage() {
           {/* Endpoints */}
           <div className="space-y-8">
             
-            {/* Create Token */}
+            {/* How It Works */}
+            <section className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden mb-8">
+              <div className="bg-orange-900/30 border-b border-gray-800 px-4 py-3">
+                <span className="text-orange-400 font-medium">🔐 Non-Custodial Flow</span>
+              </div>
+              <div className="p-4">
+                <p className="text-gray-400 mb-4">All transactions use a prepare → sign → execute flow. Your private key never leaves your device.</p>
+                <div className="bg-[#0d1117] border border-gray-700 rounded-lg p-4 font-mono text-sm">
+                  <span className="text-blue-400">1. Prepare</span> <span className="text-gray-500">→</span> <span className="text-purple-400">2. Sign Locally</span> <span className="text-gray-500">→</span> <span className="text-green-400">3. Execute</span>
+                </div>
+              </div>
+            </section>
+
+            {/* Create Token - Prepare */}
             <section className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
               <div className="bg-green-900/30 border-b border-gray-800 px-4 py-3 flex items-center gap-3">
                 <span className="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">POST</span>
-                <code className="text-white font-mono">/api/create</code>
+                <code className="text-white font-mono">/api/token/prepare-create</code>
               </div>
               <div className="p-4">
-                <p className="text-gray-400 mb-4">Create a new token on the bonding curve.</p>
+                <p className="text-gray-400 mb-4">Step 1: Prepare a token creation transaction.</p>
                 
                 <h4 className="text-white font-medium mb-2">Request Body</h4>
                 <CodeBlock title="JSON">{`{
+  "creator": "YourWalletAddress...",
+  "name": "Crab Token",
+  "symbol": "CRAB",
+  "initialBuy": 0.5
+}`}</CodeBlock>
+
+                <h4 className="text-white font-medium mb-2">Response</h4>
+                <CodeBlock title="JSON">{`{
+  "success": true,
+  "transaction": "base64_unsigned_tx...",
+  "mint": "NewMintAddress...",
+  "mintKeypair": "base64_mint_secret..."
+}`}</CodeBlock>
+                <p className="text-gray-500 text-sm mt-2">Sign the transaction locally with your wallet + the mintKeypair, then call execute-create.</p>
+              </div>
+            </section>
+
+            {/* Create Token - Execute */}
+            <section className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+              <div className="bg-green-900/30 border-b border-gray-800 px-4 py-3 flex items-center gap-3">
+                <span className="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">POST</span>
+                <code className="text-white font-mono">/api/token/execute-create</code>
+              </div>
+              <div className="p-4">
+                <p className="text-gray-400 mb-4">Step 2: Execute the signed token creation transaction.</p>
+                
+                <h4 className="text-white font-medium mb-2">Request Body</h4>
+                <CodeBlock title="JSON">{`{
+  "signedTransaction": "base64_signed_tx...",
+  "mint": "NewMintAddress...",
+  "creator": "YourWalletAddress...",
   "name": "Crab Token",
   "symbol": "CRAB",
   "description": "...",
   "image": "https://...",
   "twitter": "@crabtoken",
   "telegram": "@crabtokenchat",
-  "website": "crabtoken.xyz",
-  "initialBuy": 0.5
+  "website": "crabtoken.xyz"
 }`}</CodeBlock>
-                <ul className="text-gray-400 text-sm space-y-1 mb-4 ml-4">
-                  <li><code className="text-cyan-400">name</code> <span className="text-red-400">required</span> — max 32 chars</li>
-                  <li><code className="text-cyan-400">symbol</code> <span className="text-red-400">required</span> — max 10 chars</li>
-                  <li><code className="text-cyan-400">description</code> <span className="text-gray-500">optional</span></li>
-                  <li><code className="text-cyan-400">image</code> <span className="text-gray-500">optional</span> — image URL</li>
-                  <li><code className="text-cyan-400">twitter</code> <span className="text-gray-500">optional</span></li>
-                  <li><code className="text-cyan-400">telegram</code> <span className="text-gray-500">optional</span></li>
-                  <li><code className="text-cyan-400">website</code> <span className="text-gray-500">optional</span></li>
-                  <li><code className="text-cyan-400">initialBuy</code> <span className="text-gray-500">optional</span> — SOL to buy at launch</li>
-                </ul>
 
                 <h4 className="text-white font-medium mb-2">Response</h4>
                 <CodeBlock title="JSON">{`{
   "success": true,
-  "mint": "ABC123...",
-  "token": { ... },
-  "initialBuy": {
-    "sol_spent": 0.5,
-    "tokens_received": 17857142
-  }
+  "signature": "5xyz...",
+  "mint": "NewMintAddress...",
+  "token": { ... }
 }`}</CodeBlock>
               </div>
             </section>
@@ -149,45 +179,6 @@ export default function DocsPage() {
     ...
   },
   "trades": [ ... ]
-}`}</CodeBlock>
-              </div>
-            </section>
-
-            {/* Trade */}
-            <section className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-              <div className="bg-green-900/30 border-b border-gray-800 px-4 py-3 flex items-center gap-3">
-                <span className="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">POST</span>
-                <code className="text-white font-mono">/api/trade</code>
-              </div>
-              <div className="p-4">
-                <p className="text-gray-400 mb-4">Buy or sell tokens on the bonding curve.</p>
-                
-                <h4 className="text-white font-medium mb-2">Request Body</h4>
-                <CodeBlock title="JSON">{`{
-  "mint": "ABC123...",
-  "type": "buy",
-  "amount": 0.5,
-  "slippage": 1
-}`}</CodeBlock>
-                <ul className="text-gray-400 text-sm space-y-1 mb-4 ml-4">
-                  <li><code className="text-cyan-400">mint</code> <span className="text-red-400">required</span> — token mint address</li>
-                  <li><code className="text-cyan-400">type</code> <span className="text-red-400">required</span> — &quot;buy&quot; or &quot;sell&quot;</li>
-                  <li><code className="text-cyan-400">amount</code> <span className="text-red-400">required</span> — SOL for buy, tokens for sell</li>
-                  <li><code className="text-cyan-400">slippage</code> <span className="text-gray-500">optional</span> — default 1%</li>
-                </ul>
-
-                <h4 className="text-white font-medium mb-2">Response</h4>
-                <CodeBlock title="JSON">{`{
-  "success": true,
-  "trade": { ... },
-  "tokens_received": 17857142,
-  "sol_received": 0.48,
-  "new_price": 0.000029,
-  "fees": {
-    "total": 0.005,
-    "protocol": 0.0025,
-    "creator": 0.0025
-  }
 }`}</CodeBlock>
               </div>
             </section>
@@ -356,17 +347,24 @@ export default function DocsPage() {
                 </div>
                 <div className="bg-[#0d1117] border border-gray-700 rounded-lg p-4">
                   <div className="text-gray-500 text-xs uppercase tracking-wider mb-1">Graduation Threshold</div>
-                  <div className="text-white text-lg font-mono">85 SOL <span className="text-gray-500 text-sm">(~$69K mcap)</span></div>
+                  <div className="text-white text-lg font-mono">120 SOL raised</div>
                 </div>
               </div>
               <div className="bg-[#0d1117] border border-gray-700 rounded-lg p-4 mt-4">
                 <div className="text-gray-500 text-xs uppercase tracking-wider mb-2">Fee Breakdown</div>
-                <div className="flex gap-4 text-sm font-mono">
-                  <span className="text-white">1% total</span>
-                  <span className="text-gray-500">→</span>
-                  <span className="text-green-400">0.5% creator</span>
-                  <span className="text-gray-500">|</span>
-                  <span className="text-orange-400">0.5% protocol</span>
+                <div className="text-sm font-mono space-y-2">
+                  <div className="flex gap-4">
+                    <span className="text-white">Bonding Curve: 1%</span>
+                    <span className="text-gray-500">→</span>
+                    <span className="text-green-400">0.5% creator</span>
+                    <span className="text-gray-500">+</span>
+                    <span className="text-orange-400">0.5% protocol</span>
+                  </div>
+                  <div className="flex gap-4">
+                    <span className="text-white">After Graduation: ~0.25%</span>
+                    <span className="text-gray-500">→</span>
+                    <span className="text-blue-400">Raydium swap fee (to LP)</span>
+                  </div>
                 </div>
               </div>
             </div>

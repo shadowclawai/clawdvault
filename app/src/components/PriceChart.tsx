@@ -51,32 +51,20 @@ export default function PriceChart({
   const [chartType, setChartType] = useState<ChartType>('line');
   const [timeInterval, setTimeInterval] = useState<Interval>('5m');
 
-  // Calculate price change - prefer 24h candles but fallback to available data
+  // Calculate price change from first open to last close (24h candles preferred)
   const priceChange24h = useMemo(() => {
-    // Try 24h candles first
-    if (candles24h.length >= 2) {
-      const now = Math.floor(Date.now() / 1000);
-      const oneDayAgo = now - 24 * 60 * 60;
-      
-      // Find candle closest to 24h ago
-      const oldCandle = candles24h.find(c => c.time >= oneDayAgo) || candles24h[0];
-      const currentCandle = candles24h[candles24h.length - 1];
-      
-      if (oldCandle && currentCandle && oldCandle.close !== 0) {
-        return ((currentCandle.close - oldCandle.close) / oldCandle.close) * 100;
-      }
-    }
+    // Use 24h candles if available (1h interval data)
+    const candlesToUse = candles24h.length > 0 ? candles24h : candles;
     
-    // Fallback to visible candles if 24h not available
-    if (candles.length >= 2) {
-      const firstCandle = candles[0];
-      const lastCandle = candles[candles.length - 1];
-      if (firstCandle.close !== 0) {
-        return ((lastCandle.close - firstCandle.close) / firstCandle.close) * 100;
-      }
-    }
+    if (candlesToUse.length === 0) return 0;
     
-    return 0;
+    // First candle's OPEN vs last candle's CLOSE
+    const firstOpen = candlesToUse[0].open;
+    const lastClose = candlesToUse[candlesToUse.length - 1].close;
+    
+    if (firstOpen === 0) return 0;
+    
+    return ((lastClose - firstOpen) / firstOpen) * 100;
   }, [candles24h, candles]);
 
   // Calculate ATH and OHLCV from visible candles

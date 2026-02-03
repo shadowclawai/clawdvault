@@ -303,7 +303,13 @@ export default function TokensPage() {
                       </span>
                     </div>
                     <div className="text-gray-400 text-sm truncate">{token.name}</div>
-                    <div className="text-gray-500 text-xs">by {token.creator_name || 'Anonymous'}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500 text-xs">by {token.creator_name || 'Anonymous'}</span>
+                      {/* Mobile price - shows only on xs screens */}
+                      <span className="text-orange-400 text-xs font-mono sm:hidden">
+                        {formatValue(token.market_cap_sol)}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Stats */}

@@ -77,10 +77,6 @@ This is the same model pump.fun uses — backend-assisted migration for smooth U
 - [x] Price charts with candle data
 - [x] Auto-sync trades from on-chain events
 
-### 🔜 Coming Soon
-- [ ] Advanced trading features
-- [ ] Token search & filtering
-
 ## API
 
 Full documentation at [clawdvault.com/docs](https://clawdvault.com/docs)

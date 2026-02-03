@@ -567,7 +567,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
     return token?.real_sol_reserves || 0;
   }, [token?.real_sol_reserves]);
 
-  const progressPercent = Math.min((fundsRaised / 120) * 100, 100);
+  const progressPercent = token?.graduated ? 100 : Math.min((fundsRaised / 120) * 100, 100);
 
   if (loading) {
     return (

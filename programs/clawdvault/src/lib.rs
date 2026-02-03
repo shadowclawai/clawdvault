@@ -82,6 +82,20 @@ pub mod clawdvault {
         Ok(())
     }
 
+    /// Transfer protocol authority to a new wallet
+    pub fn transfer_authority(ctx: Context<TransferAuthority>, new_authority: Pubkey) -> Result<()> {
+        let config = &mut ctx.accounts.config;
+        let old_authority = config.authority;
+        
+        config.authority = new_authority;
+        
+        msg!("Authority transferred!");
+        msg!("Old authority: {}", old_authority);
+        msg!("New authority: {}", new_authority);
+        
+        Ok(())
+    }
+
     /// Create a new token with bonding curve, metadata, and optional initial buy
     pub fn create_token(
         ctx: Context<CreateToken>,
@@ -703,6 +717,23 @@ pub struct Initialize<'info> {
     pub config: Account<'info, Config>,
     
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct TransferAuthority<'info> {
+    /// Current authority (must sign)
+    #[account(
+        constraint = authority.key() == config.authority @ ClawdVaultError::Unauthorized,
+    )]
+    pub authority: Signer<'info>,
+    
+    /// Protocol config to update
+    #[account(
+        mut,
+        seeds = [b"config"],
+        bump = config.bump,
+    )]
+    pub config: Account<'info, Config>,
 }
 
 #[derive(Accounts)]

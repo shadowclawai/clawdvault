@@ -524,6 +524,41 @@ export class ClawdVaultClient {
     
     return tx;
   }
+
+  /**
+   * Build a transfer_authority transaction
+   * Transfers protocol authority to a new wallet
+   */
+  async buildTransferAuthorityTx(
+    currentAuthority: PublicKey,
+    newAuthority: PublicKey,
+  ): Promise<Transaction> {
+    const [configPDA] = findConfigPDA();
+    
+    // transfer_authority discriminator (first 8 bytes of sha256("global:transfer_authority"))
+    const discriminator = Buffer.from([0x52, 0xb6, 0x2e, 0x79, 0x3f, 0x1b, 0x9c, 0xda]);
+    
+    // Encode new_authority pubkey
+    const data = Buffer.concat([
+      discriminator,
+      newAuthority.toBuffer(),
+    ]);
+    
+    const instruction = new TransactionInstruction({
+      programId: PROGRAM_ID,
+      keys: [
+        { pubkey: currentAuthority, isSigner: true, isWritable: false },
+        { pubkey: configPDA, isSigner: false, isWritable: true },
+      ],
+      data,
+    });
+    
+    const tx = new Transaction().add(instruction);
+    tx.feePayer = currentAuthority;
+    tx.recentBlockhash = (await this.connection.getLatestBlockhash()).blockhash;
+    
+    return tx;
+  }
 }
 
 export default ClawdVaultClient;

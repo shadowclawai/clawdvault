@@ -85,14 +85,53 @@ pub mod clawdvault {
     }
 
     /// Resize config account (one-time migration for adding migration_operator field)
-    pub fn resize_config(ctx: Context<ResizeConfig>) -> Result<()> {
-        let config = &mut ctx.accounts.config;
+    /// Uses raw account to handle old format -> new format
+    pub fn resize_config(ctx: Context<ResizeConfigRaw>) -> Result<()> {
+        let config_info = &ctx.accounts.config;
+        let authority_info = &ctx.accounts.authority;
         
-        // Set migration_operator to authority as default
-        config.migration_operator = config.authority;
+        // Read old config data manually
+        let data = config_info.try_borrow_data()?;
+        require!(data.len() >= 89, ClawdVaultError::InvalidAccountData);
         
-        msg!("Config resized!");
-        msg!("Migration operator set to authority: {}", config.authority);
+        // Parse old format: discriminator(8) + authority(32) + fee_recipient(32) + totals(16) + bump(1)
+        let authority = Pubkey::try_from(&data[8..40]).unwrap();
+        let fee_recipient = Pubkey::try_from(&data[40..72]).unwrap();
+        let total_tokens_created = u64::from_le_bytes(data[72..80].try_into().unwrap());
+        let total_volume_sol = u64::from_le_bytes(data[80..88].try_into().unwrap());
+        let bump = data[88];
+        
+        // Verify caller is authority
+        require!(authority_info.key() == authority, ClawdVaultError::Unauthorized);
+        
+        drop(data);
+        
+        // Realloc to new size (121 bytes)
+        let new_size = 8 + 32 + 32 + 32 + 8 + 8 + 1; // 121
+        config_info.realloc(new_size, false)?;
+        
+        // Transfer rent if needed
+        let rent = Rent::get()?;
+        let new_min_balance = rent.minimum_balance(new_size);
+        let current_balance = config_info.lamports();
+        if current_balance < new_min_balance {
+            let diff = new_min_balance - current_balance;
+            **authority_info.try_borrow_mut_lamports()? -= diff;
+            **config_info.try_borrow_mut_lamports()? += diff;
+        }
+        
+        // Write new format with migration_operator = authority
+        let mut data = config_info.try_borrow_mut_data()?;
+        // Keep discriminator (first 8 bytes)
+        data[8..40].copy_from_slice(&authority.to_bytes());
+        data[40..72].copy_from_slice(&fee_recipient.to_bytes());
+        data[72..104].copy_from_slice(&authority.to_bytes()); // migration_operator = authority
+        data[104..112].copy_from_slice(&total_tokens_created.to_le_bytes());
+        data[112..120].copy_from_slice(&total_volume_sol.to_le_bytes());
+        data[120] = bump;
+        
+        msg!("Config resized from 89 to 121 bytes!");
+        msg!("Migration operator set to authority: {}", authority);
         
         Ok(())
     }
@@ -766,26 +805,21 @@ pub struct TransferAuthority<'info> {
     pub config: Account<'info, Config>,
 }
 
-/// Resize config account (one-time migration)
+/// Resize config account (one-time migration) - uses raw account to handle format change
 #[derive(Accounts)]
-pub struct ResizeConfig<'info> {
+pub struct ResizeConfigRaw<'info> {
     /// Authority pays for reallocation
-    #[account(
-        mut,
-        constraint = authority.key() == config.authority @ ClawdVaultError::Unauthorized,
-    )]
+    #[account(mut)]
     pub authority: Signer<'info>,
     
-    /// Protocol config to resize
+    /// Protocol config (raw - will be manually verified and resized)
+    /// CHECK: Manually verified in instruction, PDA seeds checked here
     #[account(
         mut,
         seeds = [b"config"],
-        bump = config.bump,
-        realloc = Config::LEN,
-        realloc::payer = authority,
-        realloc::zero = false,
+        bump,
     )]
-    pub config: Account<'info, Config>,
+    pub config: UncheckedAccount<'info>,
     
     pub system_program: Program<'info, System>,
 }
@@ -1163,4 +1197,7 @@ pub enum ClawdVaultError {
     
     #[msg("Unauthorized")]
     Unauthorized,
+    
+    #[msg("Invalid account data")]
+    InvalidAccountData,
 }

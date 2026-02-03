@@ -9,6 +9,7 @@ import Footer from '@/components/Footer';
 import ExplorerLink from '@/components/ExplorerLink';
 import { useWallet } from '@/contexts/WalletContext';
 import { fetchHoldersClient, fetchBalanceClient } from '@/lib/solana-client';
+import { subscribeToTokenStats, unsubscribeChannel } from '@/lib/supabase-client';
 
 export default function TokenPage({ params }: { params: Promise<{ mint: string }> }) {
   const { mint } = use(params);
@@ -95,6 +96,26 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
     fetchSolPrice();
     fetchNetworkMode();
     fetchOnChainStats();
+    
+    // Subscribe to realtime token stats updates
+    const tokenChannel = subscribeToTokenStats(mint, (updatedToken) => {
+      // Update token state with new reserves/stats
+      setToken(prev => prev ? {
+        ...prev,
+        virtual_sol_reserves: updatedToken.virtual_sol_reserves,
+        virtual_token_reserves: updatedToken.virtual_token_reserves,
+        real_sol_reserves: updatedToken.real_sol_reserves,
+        real_token_reserves: updatedToken.real_token_reserves,
+        graduated: updatedToken.graduated,
+        volume_24h: updatedToken.volume_24h,
+      } : null);
+      // Also refresh on-chain stats
+      fetchOnChainStats();
+    });
+    
+    return () => {
+      unsubscribeChannel(tokenChannel);
+    };
   }, [mint]);
 
   // Refetch holders when token loads (to pass creator for labeling)

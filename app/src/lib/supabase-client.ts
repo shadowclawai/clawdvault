@@ -142,6 +142,32 @@ export function subscribeToReactions(
   return channel;
 }
 
+// Subscribe to token stats updates (reserves, price changes)
+export function subscribeToTokenStats(
+  mint: string,
+  onUpdate: (token: any) => void
+): RealtimeChannel {
+  const client = getSupabaseClient();
+  
+  const channel = client
+    .channel(`token:${mint}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'tokens',
+        filter: `mint=eq.${mint}`
+      },
+      (payload) => {
+        onUpdate(payload.new);
+      }
+    )
+    .subscribe();
+  
+  return channel;
+}
+
 // Unsubscribe from a channel
 export function unsubscribeChannel(channel: RealtimeChannel): void {
   const client = getSupabaseClient();

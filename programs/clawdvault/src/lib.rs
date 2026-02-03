@@ -965,21 +965,20 @@ pub struct ReleaseForMigration<'info> {
     )]
     pub bonding_curve: Account<'info, BondingCurve>,
     
-    /// SOL vault holding the curve's SOL
+    /// SOL vault holding the curve's SOL (owned by program, not system)
+    /// CHECK: PDA verified by seeds, lamports transferred manually
     #[account(
         mut,
         seeds = [VAULT_SEED, bonding_curve.mint.as_ref()],
         bump = bonding_curve.sol_vault_bump,
     )]
-    pub sol_vault: SystemAccount<'info>,
+    pub sol_vault: UncheckedAccount<'info>,
     
-    /// Token vault holding remaining tokens
+    /// Token vault holding remaining tokens (ATA owned by bonding_curve)
     #[account(
         mut,
-        seeds = [TOKEN_VAULT_SEED, bonding_curve.mint.as_ref()],
-        bump,
-        token::mint = token_mint,
-        token::authority = bonding_curve,
+        associated_token::mint = token_mint,
+        associated_token::authority = bonding_curve,
     )]
     pub token_vault: Account<'info, TokenAccount>,
     

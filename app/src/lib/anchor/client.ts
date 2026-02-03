@@ -499,7 +499,7 @@ export class ClawdVaultClient {
     );
     
     // release_for_migration discriminator (first 8 bytes of sha256("global:release_for_migration"))
-    const discriminator = Buffer.from([0xec, 0x5a, 0x8b, 0x9f, 0x8b, 0x1a, 0x4c, 0x8d]);
+    const discriminator = Buffer.from([0xcd, 0x7d, 0xe7, 0x0e, 0x00, 0xb7, 0xca, 0xe0]);
     
     const instruction = new TransactionInstruction({
       programId: PROGRAM_ID,

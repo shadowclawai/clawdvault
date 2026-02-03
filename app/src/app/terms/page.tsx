@@ -76,9 +76,17 @@ export default function TermsPage() {
             <section>
               <h2 className="text-xl font-semibold text-white mb-3">6. Fees</h2>
               <p className="text-gray-400">
-                The Platform charges a 1% fee on all trades, distributed as follows: 0.5% to the token creator 
-                and 0.5% to the protocol. Fees are subject to change with notice. Blockchain transaction fees 
-                (gas) are separate and paid directly to the Solana network.
+                <strong>Bonding Curve Phase:</strong> The Platform charges a 1% fee on all trades, distributed as follows: 
+                0.5% to the token creator and 0.5% to the protocol.
+              </p>
+              <p className="text-gray-400 mt-2">
+                <strong>After Graduation:</strong> Once a token graduates to Raydium (at ~120 SOL raised), trades 
+                occur on Raydium&apos;s CPMM pools with an approximate 0.25% swap fee. ClawdVault no longer collects 
+                fees on graduated tokens.
+              </p>
+              <p className="text-gray-400 mt-2">
+                Fees are subject to change with notice. Blockchain transaction fees (gas) are separate and paid 
+                directly to the Solana network.
               </p>
             </section>
 

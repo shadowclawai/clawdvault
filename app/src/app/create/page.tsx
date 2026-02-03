@@ -565,8 +565,9 @@ export default function CreatePage() {
                 <ul className="text-gray-400 space-y-1">
                   <li>• Initial supply: 1,000,000,000 tokens</li>
                   <li>• Starting price: ~0.000000028 SOL</li>
-                  <li>• 1% fee on all trades</li>
-                  <li>• Graduates to Raydium at ~$69K market cap</li>
+                  <li>• Bonding curve: 1% fee (0.5% to you + 0.5% protocol)</li>
+                  <li>• After graduation: ~0.25% Raydium swap fee</li>
+                  <li>• Graduates to Raydium at ~120 SOL raised</li>
                 </ul>
                 {/* Network mode indicator */}
                 <div className="mt-3 pt-3 border-t border-gray-700 flex items-center gap-2">

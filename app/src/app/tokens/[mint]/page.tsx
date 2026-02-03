@@ -1084,7 +1084,9 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                   )}
 
                   <div className="text-gray-500 text-xs text-center mt-4">
-                    1% fee on all trades
+                    {token.graduated 
+                      ? "Trades via Raydium • ~0.25% swap fee" 
+                      : "1% fee (0.5% creator + 0.5% protocol)"}
                   </div>
               </div>
 

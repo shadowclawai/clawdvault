@@ -284,9 +284,9 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
     if (minVirtualSol <= 0) return tokenBalance; // All liquidity available
     const maxVirtualTokens = k / minVirtualSol;
     const maxTokens = maxVirtualTokens - token.virtual_token_reserves;
-    // Account for 1% fee (we need to input more to get the net amount)
-    const maxTokensWithFee = maxTokens / 0.99;
-    return Math.min(maxTokensWithFee, tokenBalance);
+    // Account for 1% fee + 2% safety buffer for rounding/precision
+    const maxTokensWithBuffer = maxTokens * 0.97;
+    return Math.min(maxTokensWithBuffer, tokenBalance);
   }, [token, tokenBalance]);
 
   const handleTrade = async () => {

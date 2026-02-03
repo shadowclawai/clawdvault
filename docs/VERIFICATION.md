@@ -106,15 +106,23 @@ solana-verify remote get-job-status \
 
 | Network | Deployed Hash | Verifiable Build Hash | Match |
 |---------|---------------|----------------------|-------|
-| Mainnet | `14038325...` | `1315df55...` | ❌ No |
+| Mainnet | `06a229aa83b0fd4299186d447150f26c6123669ee14c42c9b766cdc1379672e3` | `06a229aa83b0fd4299186d447150f26c6123669ee14c42c9b766cdc1379672e3` | ✅ Yes |
 
-**Action Required:** Redeploy using the verifiable build to enable verification.
+**Status:** Verified build deployed! Submit for remote verification to show as verified in explorers.
 
 ## Troubleshooting
 
 ### "Unable to find docker image for Solana version X"
 
 This happens with `solana-verify`. Use `anchor build --verifiable` instead.
+
+### "Program is not deployed" Error
+
+If `solana-verify` says the program isn't deployed but `solana program show` works, try specifying the full RPC URL:
+```bash
+solana-verify get-program-hash GUyF2TVe32Cid4iGVt2F6wPYDhLSVmTUZBj2974outYM \
+  --url https://api.mainnet-beta.solana.com
+```
 
 ### Hash Mismatch After Deployment
 

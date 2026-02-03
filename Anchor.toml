@@ -17,8 +17,8 @@ clawdvault = "GUyF2TVe32Cid4iGVt2F6wPYDhLSVmTUZBj2974outYM"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
-wallet = "~/.config/solana/claw-wallet.json"
+cluster = "mainnet"
+wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"

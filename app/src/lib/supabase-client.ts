@@ -153,6 +153,7 @@ export function subscribeToTokenStats(
   
   console.log('[Realtime] Subscribing to token stats for:', mint);
   
+  // Subscribe without filter - filter in callback instead (more reliable with local Supabase)
   const channel = client
     .channel(`token:${mint}`)
     .on(
@@ -161,11 +162,13 @@ export function subscribeToTokenStats(
         event: 'UPDATE',
         schema: 'public',
         table: 'tokens',
-        filter: `mint=eq.${mint}`
       },
       (payload) => {
-        console.log('[Realtime] Token update received:', payload);
-        onUpdate(payload.new);
+        const record = payload.new as any;
+        if (record?.mint === mint) {
+          console.log('[Realtime] Token update received:', payload);
+          onUpdate(record);
+        }
       }
     )
     .subscribe((status) => {
@@ -261,6 +264,7 @@ export function subscribeToCandles(
   
   console.log('[Realtime] Subscribing to candles for:', mint);
   
+  // Subscribe without filter - filter in callback instead (more reliable with local Supabase)
   const channel = client
     .channel(`candles:${mint}`)
     .on(
@@ -269,11 +273,14 @@ export function subscribeToCandles(
         event: '*', // INSERT or UPDATE
         schema: 'public',
         table: 'price_candles',
-        filter: `token_mint=eq.${mint}`
       },
       (payload) => {
-        console.log('[Realtime] Candle update:', payload);
-        onUpdate();
+        // Filter client-side
+        const record = payload.new as any;
+        if (record?.token_mint === mint) {
+          console.log('[Realtime] Candle update for this token:', payload);
+          onUpdate();
+        }
       }
     )
     .subscribe((status) => {

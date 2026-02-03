@@ -188,10 +188,11 @@ export async function POST(request: Request) {
     }
     
     // Record the trade in database using ON-CHAIN data
+    let dbTradeId: string | undefined;
     try {
       if (tradeEvent) {
         // Use verified on-chain data
-        await recordTrade({
+        const dbTrade = await recordTrade({
           mint: tradeEvent.mint,
           type: tradeEvent.isBuy ? 'buy' : 'sell',
           wallet: tradeEvent.trader,
@@ -200,7 +201,8 @@ export async function POST(request: Request) {
           signature,
           timestamp: new Date(Number(tradeEvent.timestamp) * 1000),
         });
-        console.log(`📊 Trade recorded from on-chain event: ${tradeEvent.isBuy ? 'BUY' : 'SELL'} ${Number(tradeEvent.solAmount) / 1e9} SOL`);
+        dbTradeId = dbTrade?.id;
+        console.log(`📊 Trade recorded from on-chain event: ${tradeEvent.isBuy ? 'BUY' : 'SELL'} ${Number(tradeEvent.solAmount) / 1e9} SOL (ID: ${dbTradeId})`);
       } else {
         console.warn('⚠️ Could not parse TradeEvent from logs - trade not recorded in DB');
         // Don't fall back to client data - that would defeat the purpose
@@ -218,8 +220,9 @@ export async function POST(request: Request) {
       }`,
       slot: confirmation.context?.slot,
       blockTime: txDetails?.blockTime,
-      // Return verified on-chain amounts
+      // Return verified on-chain amounts + DB trade ID
       trade: tradeEvent ? {
+        id: dbTradeId,
         mint: tradeEvent.mint,
         trader: tradeEvent.trader,
         type: tradeEvent.isBuy ? 'buy' : 'sell',

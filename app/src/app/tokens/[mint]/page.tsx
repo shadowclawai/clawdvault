@@ -268,28 +268,8 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
     }
   }, [token, amount, tradeType, estimatedOutput]);
 
-  // Calculate max sellable tokens based on real liquidity
-  const maxSellableTokens = useMemo(() => {
-    if (!token || !token.real_sol_reserves || token.real_sol_reserves <= 0) {
-      return 0;
-    }
-    // From constant product: sol_out = virtual_sol - (k / (virtual_tokens + tokens_in))
-    // We want sol_out = real_sol_reserves (max withdrawable)
-    // So: real_sol = virtual_sol - (k / (virtual_tokens + max_tokens))
-    // k / (virtual_tokens + max_tokens) = virtual_sol - real_sol
-    // virtual_tokens + max_tokens = k / (virtual_sol - real_sol)
-    // max_tokens = k / (virtual_sol - real_sol) - virtual_tokens
-    // Calculate max tokens that can be sold given real liquidity
-    // Use 95% of real_sol to leave buffer for precision/rounding
-    const safeRealSol = token.real_sol_reserves * 0.95;
-    const k = token.virtual_sol_reserves * token.virtual_token_reserves;
-    const targetVirtualSol = token.virtual_sol_reserves - safeRealSol;
-    if (targetVirtualSol <= 0) return tokenBalance;
-    const maxVirtualTokens = k / targetVirtualSol;
-    const maxTokens = maxVirtualTokens - token.virtual_token_reserves;
-    // Floor to avoid any fractional overflow
-    return Math.min(Math.floor(maxTokens), tokenBalance);
-  }, [token, tokenBalance]);
+  // Contract now caps sells at available liquidity, so max is just token balance
+  const maxSellableTokens = tokenBalance;
 
   const handleTrade = async () => {
     if (!amount || !token || !connected || !publicKey) return;
@@ -413,9 +393,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
   };
 
   const handleQuickSell = (percent: number) => {
-    // Cap at maxSellableTokens based on liquidity
-    const effectiveMax = Math.min(tokenBalance, maxSellableTokens);
-    const tokenAmount = (effectiveMax * percent / 100);
+    const tokenAmount = (tokenBalance * percent / 100);
     setAmount(tokenAmount.toString());
   };
 
@@ -821,11 +799,8 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                         <span className="text-gray-500">
                           Max: {tradeType === 'buy' 
                             ? (solBalance?.toFixed(4) || '0') + ' SOL'
-                            : formatNumber(Math.min(tokenBalance, maxSellableTokens))
+                            : formatNumber(tokenBalance)
                           }
-                          {tradeType === 'sell' && maxSellableTokens < tokenBalance && (
-                            <span className="text-yellow-500 ml-1" title="Limited by curve liquidity">⚠️</span>
-                          )}
                         </span>
                       )}
                     </div>
@@ -842,7 +817,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                       <button
                         onClick={() => setAmount(tradeType === 'buy' 
                           ? (solBalance || 0).toString() 
-                          : Math.min(tokenBalance, maxSellableTokens).toString()
+                          : tokenBalance.toString()
                         )}
                         className="absolute right-2 top-1/2 -translate-y-1/2 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 px-2 py-1 rounded text-sm transition"
                       >
@@ -914,12 +889,12 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                     </div>
                   )}
 
-                  {/* Liquidity Warning */}
+                  {/* Liquidity Info */}
                   {estimatedOutput?.cappedByLiquidity && (
-                    <div className="bg-yellow-900/30 border border-yellow-500/50 rounded-lg p-3 mb-4">
-                      <div className="text-yellow-400 text-sm flex items-center gap-2">
-                        <span>⚠️</span>
-                        <span>Limited by curve liquidity. Sell smaller amount or in batches.</span>
+                    <div className="bg-blue-900/30 border border-blue-500/50 rounded-lg p-3 mb-4">
+                      <div className="text-blue-400 text-sm flex items-center gap-2">
+                        <span>ℹ️</span>
+                        <span>Partial fill - only tokens up to available liquidity will be sold.</span>
                       </div>
                     </div>
                   )}

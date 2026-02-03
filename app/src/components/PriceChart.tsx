@@ -162,6 +162,14 @@ export default function PriceChart({
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
+    // Format price axis values (e.g., 3.2K instead of 3200)
+    const formatAxisPrice = (price: number): string => {
+      if (price >= 1000000) return '$' + (price / 1000000).toFixed(1) + 'M';
+      if (price >= 1000) return '$' + (price / 1000).toFixed(1) + 'K';
+      if (price >= 1) return '$' + price.toFixed(2);
+      return '$' + price.toFixed(4);
+    };
+
     if (!chartRef.current) {
       chartRef.current = createChart(chartContainerRef.current, {
         layout: {
@@ -186,6 +194,9 @@ export default function PriceChart({
         },
         rightPriceScale: {
           borderColor: 'rgba(55, 65, 81, 0.5)',
+        },
+        localization: {
+          priceFormatter: formatAxisPrice,
         },
       });
     }

@@ -366,24 +366,17 @@ export default function PriceChart({
         <div className="flex items-start justify-between mb-2">
           <div>
             <div className="text-gray-500 text-xs mb-1">Market Cap</div>
-            {effectivePrice > 0 ? (
+            {effectivePrice > 0 && solPrice ? (
               <>
                 <div className="text-3xl font-bold text-white">
-                  {candleMarketCap?.usd 
-                    ? formatMcap(candleMarketCap.usd) 
-                    : candleMarketCap?.sol 
-                      ? formatMcapSol(candleMarketCap.sol)
-                      : marketCapUsd ? formatMcap(marketCapUsd) : formatMcapSol(marketCapSol)}
+                  {candleMarketCap?.usd ? formatMcap(candleMarketCap.usd) : '--'}
                 </div>
                 <div className="flex items-center gap-2 mt-1">
                   <span className={`text-sm font-medium ${priceChange24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {priceChange24h >= 0 ? '+' : ''}{candleMarketCap?.usd 
+                    {priceChange24h >= 0 ? '+' : ''}
+                    {candleMarketCap?.usd 
                       ? formatMcap(Math.abs(priceChange24h / 100 * candleMarketCap.usd))
-                      : candleMarketCap?.sol
-                        ? formatMcapSol(Math.abs(priceChange24h / 100 * candleMarketCap.sol))
-                        : marketCapUsd 
-                          ? formatMcap(Math.abs(priceChange24h / 100 * marketCapUsd))
-                          : formatMcapSol(Math.abs(priceChange24h / 100 * marketCapSol))
+                      : '--'
                     } ({priceChange24h >= 0 ? '+' : ''}{priceChange24h.toFixed(2)}%)
                   </span>
                   <span className="text-gray-500 text-sm">24hr</span>
@@ -400,12 +393,9 @@ export default function PriceChart({
           {/* ATH Display */}
           <div className="text-right">
             <div className="text-gray-500 text-xs mb-1">ATH</div>
-            {effectivePrice > 0 ? (
+            {effectivePrice > 0 && solPrice ? (
               <div className="text-green-400 font-bold text-xl">
-                {marketCapUsd && athPrice > 0
-                  ? formatMcap(athPrice * totalSupply * (solPrice || 0))
-                  : athPrice > 0 ? formatMcapSol(athPrice * totalSupply) : '--'
-                }
+                {athPrice > 0 ? formatMcap(athPrice * totalSupply * solPrice) : '--'}
               </div>
             ) : (
               <div className="h-7 w-20 bg-gray-700 rounded animate-pulse" />
@@ -416,7 +406,7 @@ export default function PriceChart({
         {/* ATH Progress Bar - full width like pump.fun */}
         <div className="mb-4">
           <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-            {effectivePrice > 0 ? (
+            {effectivePrice > 0 && solPrice ? (
               <div 
                 className={`h-full rounded-full transition-all ${athProgress >= 95 ? 'bg-green-500' : 'bg-gradient-to-r from-gray-600 to-green-500'}`}
                 style={{ width: `${Math.min(athProgress, 100)}%` }}

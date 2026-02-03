@@ -244,8 +244,11 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
       const k = token.virtual_sol_reserves * token.virtual_token_reserves;
       const newTokenReserves = token.virtual_token_reserves + tokensAfterFee;
       const newSolReserves = k / newTokenReserves;
-      const solOut = token.virtual_sol_reserves - newSolReserves;
-      return { tokens: null, sol: solOut };
+      const solOutRaw = token.virtual_sol_reserves - newSolReserves;
+      // Cap at real_sol_reserves (can't withdraw more than was deposited)
+      const solOut = Math.min(solOutRaw, token.real_sol_reserves || 0);
+      const cappedByLiquidity = solOutRaw > (token.real_sol_reserves || 0);
+      return { tokens: null, sol: solOut, cappedByLiquidity };
     }
   }, [token, amount, tradeType]);
 
@@ -879,6 +882,16 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                       <div className="text-red-400 text-sm flex items-center gap-2">
                         <span>⚠️</span>
                         <span>High price impact! Consider smaller trade.</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Liquidity Warning */}
+                  {estimatedOutput?.cappedByLiquidity && (
+                    <div className="bg-yellow-900/30 border border-yellow-500/50 rounded-lg p-3 mb-4">
+                      <div className="text-yellow-400 text-sm flex items-center gap-2">
+                        <span>⚠️</span>
+                        <span>Limited by curve liquidity. Sell smaller amount or in batches.</span>
                       </div>
                     </div>
                   )}

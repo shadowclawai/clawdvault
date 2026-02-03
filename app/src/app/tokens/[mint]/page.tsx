@@ -4,6 +4,7 @@ import { useState, useEffect, use, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { Token, Trade, TradeResponse } from '@/lib/types';
 import ChatAndTrades from '@/components/ChatAndTrades';
+import PriceChart from '@/components/PriceChart';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ExplorerLink from '@/components/ExplorerLink';
@@ -657,6 +658,9 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                   🔜 Raydium graduation coming in future contract update
                 </div>
               </div>
+
+              {/* Price Chart */}
+              <PriceChart mint={token.mint} height={280} />
 
               {/* Holder Distribution - mobile only (desktop version is in sidebar) */}
               <div className="bg-gray-800/50 rounded-xl p-5 lg:hidden">

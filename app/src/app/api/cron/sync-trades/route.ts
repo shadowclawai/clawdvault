@@ -6,6 +6,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { syncTrades } from '@/lib/sync-trades';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // Allow up to 60s for sync
@@ -23,38 +24,14 @@ export async function GET(request: Request) {
   console.log('🔄 [CRON] Starting trade sync...');
   
   try {
-    // Call the sync endpoint internally
-    // Use canonical URL in prod, fallback to VERCEL_URL, then localhost
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL 
-      || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
-      || (process.env.VERCEL ? 'https://clawdvault.com' : 'http://localhost:3000');
+    // Call sync logic directly (no HTTP request needed)
+    const result = await syncTrades({ limit: 200 });
     
-    const response = await fetch(`${baseUrl}/api/sync/trades?limit=200`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    
-    // Check for non-JSON response (error pages, etc.)
-    const contentType = response.headers.get('content-type') || '';
-    if (!contentType.includes('application/json')) {
-      const text = await response.text();
-      console.error(`❌ [CRON] Non-JSON response (${response.status}):`, text.slice(0, 500));
-      return NextResponse.json({
-        success: false,
-        error: `Sync endpoint returned ${response.status}: ${text.slice(0, 100)}`,
-      }, { status: 500 });
-    }
-    
-    const data = await response.json();
-    
-    console.log(`🔄 [CRON] Sync complete: ${data.synced || 0} new trades`);
+    console.log(`🔄 [CRON] Sync complete: ${result.synced} new trades`);
     
     return NextResponse.json({
-      success: true,
       cron: 'sync-trades',
-      ...data,
+      ...result,
     });
     
   } catch (error) {

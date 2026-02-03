@@ -77,10 +77,14 @@ export async function POST(request: Request) {
     }
 
     if (token.graduated) {
-      return NextResponse.json(
-        { success: false, error: 'Token has graduated to Raydium' },
-        { status: 400 }
-      );
+      // Token graduated - redirect to Jupiter
+      return NextResponse.json({
+        success: false,
+        graduated: true,
+        error: 'Token has graduated to Raydium. Use Jupiter endpoint.',
+        redirectTo: '/api/trade/jupiter',
+        message: 'This token is now tradeable on Raydium via Jupiter aggregator.',
+      }, { status: 400 });
     }
 
     const connection = getConnection();

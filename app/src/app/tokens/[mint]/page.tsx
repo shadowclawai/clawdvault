@@ -325,7 +325,72 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
       // On-chain mode: two-step prepare → sign → execute
       console.log('Starting ON-CHAIN trade...');
       
-      // Step 1: Prepare unsigned transaction
+      // Check if token is graduated - use Jupiter instead
+      if (token.graduated) {
+        console.log('Token graduated, using Jupiter...');
+        
+        // Convert amount to proper units
+        const amountUnits = tradeType === 'buy' 
+          ? Math.floor(parseFloat(amount) * 1e9).toString()  // SOL to lamports
+          : Math.floor(parseFloat(amount) * 1e6).toString(); // Tokens to units
+        
+        const jupiterRes = await fetch('/api/trade/jupiter', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mint: token.mint,
+            action: tradeType,
+            amount: amountUnits,
+            userPublicKey: publicKey,
+            slippageBps: 100, // 1%
+          }),
+        });
+
+        const jupiterData = await jupiterRes.json();
+        
+        if (!jupiterData.success) {
+          console.error('Jupiter quote failed:', jupiterData);
+          setTradeResult({ success: false, error: jupiterData.error || 'Jupiter swap failed' });
+          return;
+        }
+        
+        console.log('Jupiter quote received:', jupiterData.quote);
+        
+        // Sign the Jupiter versioned transaction
+        const signedTx = await signTransaction(jupiterData.transaction);
+        
+        if (!signedTx) {
+          setTradeResult({ success: false, error: 'Transaction signing cancelled' });
+          return;
+        }
+        
+        // Send to Solana directly (Jupiter transactions are complete)
+        const connection = new (await import('@solana/web3.js')).Connection(
+          process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com'
+        );
+        const txBuf = Buffer.from(signedTx, 'base64');
+        const signature = await connection.sendRawTransaction(txBuf, {
+          skipPreflight: false,
+          maxRetries: 3,
+        });
+        
+        console.log('Jupiter swap sent:', signature);
+        
+        // Wait for confirmation
+        await connection.confirmTransaction(signature, 'confirmed');
+        
+        setTradeResult({
+          success: true,
+          signature,
+          message: 'Trade executed via Jupiter!',
+        });
+        setAmount('');
+        fetchToken(); fetchOnChainStats(); fetchTokenBalance();
+        setChartKey(k => k + 1);
+        return;
+      }
+      
+      // Step 1: Prepare unsigned transaction (bonding curve)
       const prepareRes = await fetch('/api/trade/prepare', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -341,6 +406,13 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
       const prepareData = await prepareRes.json();
       
       if (!prepareData.success) {
+        // Check if graduated redirect
+        if (prepareData.graduated) {
+          // Re-fetch token to update state, then retry will use Jupiter
+          await fetchToken();
+          setTradeResult({ success: false, error: 'Token just graduated! Please retry to trade via Raydium.' });
+          return;
+        }
         console.error('Prepare failed:', prepareData);
         setTradeResult({ success: false, error: prepareData.error || 'Failed to prepare transaction' });
         return;

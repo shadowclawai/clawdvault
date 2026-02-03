@@ -110,6 +110,8 @@ export interface TradeResponse {
     creator: number;
   };
   error?: string;
+  message?: string;  // Status message (e.g., Jupiter trade success)
+  graduated?: boolean;  // True if token graduated during trade
 }
 
 export interface TokenListResponse {

@@ -204,6 +204,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [getProvider, connected]);
 
   // Sign transaction (returns signed transaction as base64)
+  // Supports both legacy Transaction and VersionedTransaction (for Jupiter)
   const signTransaction = useCallback(async (transactionBase64: string): Promise<string | null> => {
     const provider = getProvider();
     if (!provider || !connected) return null;
@@ -212,19 +213,29 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       // Decode base64 to buffer
       const transactionBuffer = Buffer.from(transactionBase64, 'base64');
       
-      // Import Transaction from @solana/web3.js at runtime
-      const { Transaction } = await import('@solana/web3.js');
-      const transaction = Transaction.from(transactionBuffer);
+      // Import both Transaction types from @solana/web3.js
+      const { Transaction, VersionedTransaction } = await import('@solana/web3.js');
       
-      // Sign with Phantom
-      const signedTransaction = await provider.signTransaction(transaction);
+      // Check if it's a versioned transaction (first byte indicates version)
+      // Versioned transactions start with a version byte (0x80 for v0)
+      const isVersioned = transactionBuffer[0] >= 0x80;
       
-      // Serialize and return as base64
-      const serialized = signedTransaction.serialize({
-        requireAllSignatures: false,
-        verifySignatures: false,
-      });
-      return Buffer.from(serialized).toString('base64');
+      if (isVersioned) {
+        // VersionedTransaction (used by Jupiter)
+        const transaction = VersionedTransaction.deserialize(transactionBuffer);
+        const signedTransaction = await provider.signTransaction(transaction);
+        const serialized = signedTransaction.serialize();
+        return Buffer.from(serialized).toString('base64');
+      } else {
+        // Legacy Transaction
+        const transaction = Transaction.from(transactionBuffer);
+        const signedTransaction = await provider.signTransaction(transaction);
+        const serialized = signedTransaction.serialize({
+          requireAllSignatures: false,
+          verifySignatures: false,
+        });
+        return Buffer.from(serialized).toString('base64');
+      }
     } catch (err) {
       console.error('Failed to sign transaction:', err);
       return null;

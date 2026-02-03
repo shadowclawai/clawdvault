@@ -306,22 +306,18 @@ export default function TokensPage() {
                     <div className="text-gray-500 text-xs">by {token.creator_name || 'Anonymous'}</div>
                   </div>
 
-                  {/* Stats */}
+                  {/* Stats - Volume/Trades from DB, Price/MCap on detail page (on-chain) */}
                   <div className="text-right hidden sm:block">
-                    <div className="text-white font-mono">{formatValue(token.price_sol)}</div>
-                    <div className="text-gray-500 text-sm">Price</div>
-                  </div>
-                  <div className="text-right hidden md:block">
-                    <div className="text-orange-400 font-mono">{formatValue(token.market_cap_sol)}</div>
-                    <div className="text-gray-500 text-sm">MCap</div>
-                  </div>
-                  <div className="text-right hidden lg:block">
                     <div className="text-blue-400 font-mono">{formatValue(token.volume_24h || 0)}</div>
                     <div className="text-gray-500 text-sm">24h Vol</div>
                   </div>
-                  <div className="text-right hidden lg:block">
+                  <div className="text-right hidden md:block">
                     <div className="text-gray-400 font-mono">{token.trades_24h || 0}</div>
                     <div className="text-gray-500 text-sm">Trades</div>
+                  </div>
+                  <div className="text-right hidden lg:block">
+                    <div className="text-purple-400 font-mono">{token.holders || 1}</div>
+                    <div className="text-gray-500 text-sm">Holders</div>
                   </div>
 
                   {/* Arrow */}

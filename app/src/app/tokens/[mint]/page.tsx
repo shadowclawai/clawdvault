@@ -258,21 +258,22 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
     }
   }, [token, amount, tradeType]);
 
-  // Calculate price impact
+  // Calculate price impact using on-chain price
   const priceImpact = useMemo(() => {
-    if (!token || !amount || parseFloat(amount) <= 0) return 0;
+    if (!token || !amount || parseFloat(amount) <= 0 || !onChainStats?.price) return 0;
     const inputAmount = parseFloat(amount);
+    const currentPrice = onChainStats.price;
     
     if (tradeType === 'buy') {
-      const expectedTokens = inputAmount / token.price_sol;
+      const expectedTokens = inputAmount / currentPrice;
       const actualTokens = estimatedOutput?.tokens || 0;
       return ((expectedTokens - actualTokens) / expectedTokens) * 100;
     } else {
-      const expectedSol = inputAmount * token.price_sol;
+      const expectedSol = inputAmount * currentPrice;
       const actualSol = estimatedOutput?.sol || 0;
       return ((expectedSol - actualSol) / expectedSol) * 100;
     }
-  }, [token, amount, tradeType, estimatedOutput]);
+  }, [token, amount, tradeType, estimatedOutput, onChainStats]);
 
   // Contract now caps sells at available liquidity, so max is just token balance
   const maxSellableTokens = tokenBalance;

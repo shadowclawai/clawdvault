@@ -362,7 +362,7 @@ export default function PriceChart({
     <div className="flex flex-col bg-gray-900/80 rounded-xl overflow-hidden border border-gray-700/50 min-w-0">
       {/* Header - pump.fun style market cap + ATH display */}
       <div className="p-4 border-b border-gray-700/30">
-        {/* Market Cap + Price + ATH header */}
+        {/* Market Cap Header with ATH progress bar */}
         <div className="flex items-start justify-between mb-2">
           <div>
             <div className="text-gray-500 text-xs mb-1">Market Cap</div>
@@ -378,16 +378,6 @@ export default function PriceChart({
                 } ({priceChange24h >= 0 ? '+' : ''}{priceChange24h.toFixed(2)}%)
               </span>
               <span className="text-gray-500 text-sm">24hr</span>
-            </div>
-          </div>
-
-          {/* Price Display */}
-          <div className="text-center">
-            <div className="text-gray-500 text-xs mb-1">Price</div>
-            <div className="text-white font-bold text-xl">
-              {effectivePrice > 0 && solPrice 
-                ? `$${(effectivePrice * solPrice).toFixed(effectivePrice * solPrice < 0.0001 ? 10 : 6)}`
-                : '--'}
             </div>
           </div>
           

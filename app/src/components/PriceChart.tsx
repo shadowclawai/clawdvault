@@ -227,10 +227,10 @@ export default function PriceChart({
 
   return (
     <div className="bg-gray-900/80 rounded-xl overflow-hidden border border-gray-700/50">
-      {/* Header - pump.fun style market cap display */}
+      {/* Header - pump.fun style market cap + ATH display */}
       <div className="p-4 border-b border-gray-700/30">
-        {/* Market Cap Header with ATH */}
-        <div className="flex items-start justify-between mb-3">
+        {/* Market Cap Header with ATH progress bar */}
+        <div className="flex items-start justify-between mb-2">
           <div>
             <div className="text-gray-500 text-xs mb-1">Market Cap</div>
             <div className="text-3xl font-bold text-white">
@@ -247,24 +247,25 @@ export default function PriceChart({
             </div>
           </div>
           
-          {/* ATH Tracker */}
+          {/* ATH Display */}
           <div className="text-right">
-            <div className="flex items-center gap-2 mb-1">
-              {/* ATH Progress Bar */}
-              <div className="w-24 h-2 bg-gray-700 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full rounded-full transition-all ${athProgress >= 95 ? 'bg-green-500' : 'bg-orange-500'}`}
-                  style={{ width: `${Math.min(athProgress, 100)}%` }}
-                />
-              </div>
-              <div className="text-gray-500 text-xs">ATH</div>
-            </div>
-            <div className="text-green-400 font-bold">
+            <div className="text-gray-500 text-xs mb-1">ATH</div>
+            <div className="text-green-400 font-bold text-xl">
               {marketCapUsd && athPrice > 0
                 ? formatMcap(athPrice * totalSupply * (solPrice || 0))
                 : athPrice > 0 ? formatMcapSol(athPrice * totalSupply) : '--'
               }
             </div>
+          </div>
+        </div>
+
+        {/* ATH Progress Bar - full width like pump.fun */}
+        <div className="mb-4">
+          <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div 
+              className={`h-full rounded-full transition-all ${athProgress >= 95 ? 'bg-green-500' : 'bg-gradient-to-r from-gray-600 to-green-500'}`}
+              style={{ width: `${Math.min(athProgress, 100)}%` }}
+            />
           </div>
         </div>
 

@@ -23,6 +23,7 @@ interface PriceChartProps {
   bondingProgress?: number;
   volume24h?: number;
   solPrice?: number | null;
+  holders?: number;
 }
 
 type ChartType = 'line' | 'candle';
@@ -32,7 +33,7 @@ const TOTAL_SUPPLY = 1_000_000_000;
 
 export default function PriceChart({ 
   mint, 
-  height = 400, 
+  height = 450, 
   totalSupply = TOTAL_SUPPLY,
   currentPrice = 0,
   marketCapSol = 0,
@@ -40,6 +41,7 @@ export default function PriceChart({
   bondingProgress = 0,
   volume24h = 0,
   solPrice = null,
+  holders = 0,
 }: PriceChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -91,7 +93,7 @@ export default function PriceChart({
           horzLines: { color: 'rgba(55, 65, 81, 0.3)' },
         },
         width: chartContainerRef.current.clientWidth,
-        height: height - 120, // Account for header
+        height: height - 220, // Account for expanded header
         crosshair: {
           mode: 1,
           vertLine: { color: '#f97316', width: 1, style: 2 },
@@ -193,70 +195,88 @@ export default function PriceChart({
   return (
     <div className="bg-gray-900/80 rounded-xl overflow-hidden border border-gray-700/50">
       {/* Header Stats - pump.fun style */}
-      <div className="p-4 border-b border-gray-700/50">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          {/* Price & Change */}
-          <div>
-            <div className="text-gray-400 text-xs mb-1">Price</div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-white text-xl font-mono">
-                {formatPrice(currentPrice)} SOL
-              </span>
+      <div className="p-4 border-b border-gray-700/30">
+        {/* Main Stats Row */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+          {/* Price */}
+          <div className="bg-gray-800/40 rounded-lg p-3">
+            <div className="text-gray-500 text-xs mb-1">Price</div>
+            <div className="text-white text-lg font-mono leading-tight">
+              {formatPrice(currentPrice)}
+            </div>
+            <div className="flex items-center gap-2 mt-1">
+              {solPrice && (
+                <span className="text-gray-500 text-xs">
+                  ≈ {formatUsd(currentPrice * solPrice)}
+                </span>
+              )}
               {priceChange !== 0 && (
-                <span className={`text-sm font-medium ${priceChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {priceChange >= 0 ? '↑' : '↓'} {Math.abs(priceChange).toFixed(1)}%
+                <span className={`text-xs font-medium ${priceChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {priceChange >= 0 ? '▲' : '▼'} {Math.abs(priceChange).toFixed(1)}%
                 </span>
               )}
             </div>
-            {solPrice && (
-              <div className="text-gray-500 text-xs mt-0.5">
-                ≈ {formatUsd(currentPrice * solPrice)}
-              </div>
-            )}
           </div>
 
           {/* Market Cap */}
-          <div>
-            <div className="text-gray-400 text-xs mb-1">Market Cap</div>
-            <div className="text-orange-400 text-lg font-mono">
-              {marketCapUsd ? formatUsd(marketCapUsd) : formatSol(marketCapSol) + ' SOL'}
+          <div className="bg-gray-800/40 rounded-lg p-3">
+            <div className="text-gray-500 text-xs mb-1">Market Cap</div>
+            <div className="text-orange-400 text-lg font-mono leading-tight">
+              {marketCapUsd ? formatUsd(marketCapUsd) : formatSol(marketCapSol)}
             </div>
+            {marketCapUsd && (
+              <div className="text-gray-500 text-xs mt-1">{formatSol(marketCapSol)} SOL</div>
+            )}
           </div>
 
           {/* Volume */}
-          <div>
-            <div className="text-gray-400 text-xs mb-1">24h Volume</div>
-            <div className="text-blue-400 text-lg font-mono">
-              {solPrice ? formatUsd(volume24h * solPrice) : formatSol(volume24h) + ' SOL'}
+          <div className="bg-gray-800/40 rounded-lg p-3">
+            <div className="text-gray-500 text-xs mb-1">24h Volume</div>
+            <div className="text-blue-400 text-lg font-mono leading-tight">
+              {solPrice ? formatUsd(volume24h * solPrice) : formatSol(volume24h)}
             </div>
+            {solPrice && (
+              <div className="text-gray-500 text-xs mt-1">{formatSol(volume24h)} SOL</div>
+            )}
           </div>
 
-          {/* Bonding Progress */}
-          <div className="min-w-[140px]">
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-gray-400">Bonding Curve</span>
-              <span className="text-orange-400 font-medium">{bondingProgress.toFixed(1)}%</span>
-            </div>
-            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-gradient-to-r from-orange-500 to-red-500 transition-all duration-500"
-                style={{ width: `${Math.min(bondingProgress, 100)}%` }}
-              />
+          {/* Holders */}
+          <div className="bg-gray-800/40 rounded-lg p-3">
+            <div className="text-gray-500 text-xs mb-1">Holders</div>
+            <div className="text-purple-400 text-lg font-mono leading-tight">
+              {holders || '--'}
             </div>
           </div>
         </div>
 
+        {/* Bonding Curve Progress */}
+        <div className="bg-gray-800/40 rounded-lg p-3 mb-4">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-gray-400 text-sm">Bonding Curve Progress</span>
+            <span className="text-orange-400 font-mono font-medium">{bondingProgress.toFixed(1)}%</span>
+          </div>
+          <div className="h-2.5 bg-gray-700 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-orange-500 via-orange-400 to-green-400 transition-all duration-500"
+              style={{ width: `${Math.min(bondingProgress, 100)}%` }}
+            />
+          </div>
+          <div className="text-gray-500 text-xs mt-2 text-center">
+            🚀 Raydium graduation at 100%
+          </div>
+        </div>
+
         {/* Controls */}
-        <div className="flex justify-between items-center mt-4">
+        <div className="flex justify-between items-center">
           <div className="flex gap-1">
             {(['1m', '5m', '15m', '1h', '1d'] as Interval[]).map((i) => (
               <button
                 key={i}
                 onClick={() => setTimeInterval(i)}
-                className={`px-2.5 py-1 text-xs rounded transition ${
+                className={`px-3 py-1.5 text-xs rounded-md font-medium transition ${
                   timeInterval === i
-                    ? 'bg-orange-500 text-white'
-                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                    ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/25'
+                    : 'bg-gray-800/60 text-gray-400 hover:bg-gray-700 hover:text-gray-300'
                 }`}
               >
                 {i}
@@ -266,23 +286,23 @@ export default function PriceChart({
           <div className="flex gap-1">
             <button
               onClick={() => setChartType('line')}
-              className={`px-2.5 py-1 text-xs rounded transition ${
+              className={`px-3 py-1.5 text-xs rounded-md font-medium transition ${
                 chartType === 'line'
-                  ? 'bg-orange-500 text-white'
-                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                  ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/25'
+                  : 'bg-gray-800/60 text-gray-400 hover:bg-gray-700 hover:text-gray-300'
               }`}
             >
-              Line
+              📈 Line
             </button>
             <button
               onClick={() => setChartType('candle')}
-              className={`px-2.5 py-1 text-xs rounded transition ${
+              className={`px-3 py-1.5 text-xs rounded-md font-medium transition ${
                 chartType === 'candle'
-                  ? 'bg-orange-500 text-white'
-                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                  ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/25'
+                  : 'bg-gray-800/60 text-gray-400 hover:bg-gray-700 hover:text-gray-300'
               }`}
             >
-              Candles
+              🕯️ Candles
             </button>
           </div>
         </div>
@@ -290,11 +310,11 @@ export default function PriceChart({
       
       {/* Chart */}
       {loading && candles.length === 0 ? (
-        <div className="flex items-center justify-center text-gray-500" style={{ height: height - 120 }}>
+        <div className="flex items-center justify-center text-gray-500" style={{ height: height - 220 }}>
           Loading chart...
         </div>
       ) : candles.length === 0 ? (
-        <div className="flex flex-col items-center justify-center text-gray-500" style={{ height: height - 120 }}>
+        <div className="flex flex-col items-center justify-center text-gray-500" style={{ height: height - 220 }}>
           <span className="text-2xl mb-2">📊</span>
           <span>No price history yet</span>
           <span className="text-xs text-gray-600 mt-1">Chart appears after first trade</span>

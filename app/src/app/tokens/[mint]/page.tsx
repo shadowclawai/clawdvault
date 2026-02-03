@@ -588,87 +588,17 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
           <div className="grid lg:grid-cols-3 gap-4">
             {/* Stats & Bonding - order-1 on mobile (pump.fun style: stats before trade) */}
             <div className="lg:col-span-2 space-y-4 order-1">
-              {/* Price & Market Cap */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-gray-800/50 rounded-xl p-4">
-                  <div className="text-gray-500 text-sm mb-1 flex items-center gap-1">
-                    Price
-                    {onChainStats && <span className="text-green-500 text-xs">●</span>}
-                  </div>
-                  <div className="text-white font-mono text-lg">
-                    {formatValue(onChainStats?.price ?? token.price_sol)}
-                  </div>
-                  {solPrice !== null && (
-                    <div className="text-gray-500 font-mono text-xs">
-                      {formatPrice(onChainStats?.price ?? token.price_sol)} SOL
-                    </div>
-                  )}
-                </div>
-                <div className="bg-gray-800/50 rounded-xl p-4">
-                  <div className="text-gray-500 text-sm mb-1 flex items-center gap-1">
-                    Market Cap
-                    {onChainStats && <span className="text-green-500 text-xs">●</span>}
-                  </div>
-                  <div className="text-orange-400 font-mono text-lg">
-                    {formatValue(onChainStats?.marketCap ?? token.market_cap_sol)}
-                  </div>
-                  {solPrice !== null && (
-                    <div className="text-gray-500 font-mono text-xs">
-                      {formatNumber(onChainStats?.marketCap ?? token.market_cap_sol)} SOL
-                    </div>
-                  )}
-                </div>
-                <div className="bg-gray-800/50 rounded-xl p-4">
-                  <div className="text-gray-500 text-sm mb-1">24h Volume</div>
-                  <div className="text-blue-400 font-mono text-lg">{formatValue(token.volume_24h || 0)}</div>
-                  {solPrice !== null && (
-                    <div className="text-gray-500 font-mono text-xs">{formatNumber(token.volume_24h || 0)} SOL</div>
-                  )}
-                </div>
-                <div className="bg-gray-800/50 rounded-xl p-4">
-                  <div className="text-gray-500 text-sm mb-1">Holders</div>
-                  <div className="text-amber-400 font-mono text-lg">
-                    {holders.length > 0 ? holders.length : (token.holders || '--')}
-                  </div>
-                </div>
-              </div>
-
-              {/* Graduation Progress */}
-              <div className="bg-gray-800/50 rounded-xl p-4">
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-gray-400">Bonding Curve Progress</span>
-                  <span className="text-orange-400">{progressPercent.toFixed(1)}%</span>
-                </div>
-                <div className="h-3 bg-gray-700 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-orange-500 to-red-500 transition-all duration-500"
-                    style={{ width: `${progressPercent}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-xs text-gray-500 mt-2">
-                  <span>{formatValue(fundsRaised)} raised</span>
-                  <span>
-                    {graduationMarketCap.usd !== null 
-                      ? formatUsd(graduationMarketCap.usd) + ' mcap goal'
-                      : formatNumber(graduationMarketCap.sol) + ' SOL mcap goal'
-                    }
-                  </span>
-                </div>
-                <div className="text-xs text-gray-500 mt-2 text-center">
-                  🔜 Raydium graduation coming in future contract update
-                </div>
-              </div>
-
-              {/* Price Chart */}
+              {/* Price Chart with integrated stats */}
               <PriceChart 
                 mint={token.mint} 
-                height={420}
+                height={450}
                 currentPrice={onChainStats?.price ?? token.price_sol}
                 marketCapSol={onChainStats?.marketCap ?? token.market_cap_sol}
                 marketCapUsd={solPrice ? (onChainStats?.marketCap ?? token.market_cap_sol) * solPrice : null}
                 bondingProgress={progressPercent}
                 volume24h={token.volume_24h || 0}
                 solPrice={solPrice}
+                holders={holders.length > 0 ? holders.length : (token.holders || 0)}
               />
 
               {/* Holder Distribution - mobile only (desktop version is in sidebar) */}

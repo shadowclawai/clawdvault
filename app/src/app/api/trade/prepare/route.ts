@@ -160,8 +160,14 @@ export async function POST(request: Request) {
         curveState.virtualTokenReserves
       );
       
-      // Apply slippage
-      const minSolOut = (solOut * BigInt(Math.floor((1 - slippage) * 10000))) / BigInt(10000);
+      // Check if sell exceeds available liquidity (contract will cap it)
+      const cappedByLiquidity = solOut > curveState.realSolReserves;
+      const effectiveSolOut = cappedByLiquidity ? curveState.realSolReserves : solOut;
+      
+      // Apply slippage to effective output (use 0 for partial fills to be safe)
+      const minSolOut = cappedByLiquidity 
+        ? BigInt(0) 
+        : (effectiveSolOut * BigInt(Math.floor((1 - slippage) * 10000))) / BigInt(10000);
       
       // Build transaction using Anchor client
       const transaction = await client.buildSellTransaction(
@@ -180,7 +186,7 @@ export async function POST(request: Request) {
       });
       
       const feeNumber = Number(fee) / 1e9;
-      const solOutNumber = Number(solOut) / 1e9;
+      const effectiveSolOutNumber = Number(effectiveSolOut) / 1e9;
       const minSolOutNumber = Number(minSolOut) / 1e9;
       
       return NextResponse.json({
@@ -191,13 +197,14 @@ export async function POST(request: Request) {
           tokens: body.amount,
         },
         output: {
-          sol: solOutNumber,
+          sol: effectiveSolOutNumber,
           minSol: minSolOutNumber,
           fee: feeNumber,
         },
         priceImpact,
         currentPrice: token.price_sol,
         onChain: true,
+        cappedByLiquidity,
       });
     }
     

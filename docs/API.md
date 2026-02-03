@@ -348,7 +348,7 @@ When a token's bonding curve reaches 120 SOL in reserves, it becomes eligible fo
 }
 ```
 
-**Response:**
+**Response (success):**
 ```json
 {
   "success": true,
@@ -358,8 +358,10 @@ When a token's bonding curve reaches 120 SOL in reserves, it becomes eligible fo
     "migrationWallet": "MigrationWalletAddress...",
     "solReleased": "120000000000",
     "tokensReleased": "200000000000000",
-    "raydiumPool": null,
-    "message": "Assets released to migration wallet. Raydium pool creation pending."
+    "raydiumPool": "PoolIdAddress...",
+    "lpMint": "LpMintAddress...",
+    "poolTxSignature": "6abc...",
+    "message": "Token graduated to Raydium successfully!"
   }
 }
 ```

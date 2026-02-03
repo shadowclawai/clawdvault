@@ -239,14 +239,35 @@ export async function POST(request: Request) {
     );
     console.log(`✅ Assets released: ${releaseSignature}`);
 
-    // Step 3: Create Raydium pool
-    // TODO: Implement Raydium SDK integration
-    // For now, just mark as migrated and return
-    console.log('⚠️ Raydium pool creation not yet implemented');
-    console.log('Assets are in migration wallet, manual pool creation required');
-
-    // Note: On-chain state is source of truth
-    // Database will sync via trade/candle endpoints reading on-chain data
+    // Step 3: Create Raydium CPMM pool
+    console.log('Creating Raydium CPMM pool...');
+    
+    let raydiumPool = null;
+    let poolTxSignature = null;
+    let lpMint = null;
+    
+    try {
+      const { createCpmmPool } = await import('@/lib/raydium');
+      
+      const poolResult = await createCpmmPool(
+        mint,
+        realTokenReserves,
+        realSolReserves
+      );
+      
+      raydiumPool = poolResult.poolId;
+      lpMint = poolResult.lpMint;
+      poolTxSignature = poolResult.txSignature;
+      
+      console.log(`✅ Raydium pool created: ${raydiumPool}`);
+      console.log(`   LP Mint: ${lpMint}`);
+      console.log(`   Tx: ${poolTxSignature}`);
+      
+    } catch (poolError) {
+      console.error('⚠️ Raydium pool creation failed:', poolError);
+      // Don't fail the whole graduation - assets are released
+      // Pool can be created manually or retried
+    }
 
     return NextResponse.json({
       success: true,
@@ -256,8 +277,12 @@ export async function POST(request: Request) {
         migrationWallet: migrationWallet.publicKey.toBase58(),
         solReleased: realSolReserves.toString(),
         tokensReleased: realTokenReserves.toString(),
-        raydiumPool: null, // TODO: Return pool address when implemented
-        message: 'Assets released to migration wallet. Raydium pool creation pending.',
+        raydiumPool,
+        lpMint,
+        poolTxSignature,
+        message: raydiumPool 
+          ? 'Token graduated to Raydium successfully!'
+          : 'Assets released. Raydium pool creation failed - can retry manually.',
       }
     });
 

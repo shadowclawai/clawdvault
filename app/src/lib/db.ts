@@ -603,5 +603,16 @@ export async function recordTrade(params: RecordTradeParams) {
     return { trade, token: updatedToken };
   });
   
+  // Update candles (fire and forget - don't block on this)
+  const newPrice = newVirtualSol / newVirtualTokens;
+  try {
+    const { updateCandles } = await import('./candles');
+    await updateCandles(params.mint, newPrice, params.solAmount, params.timestamp || new Date());
+    console.log('[recordTrade] Candles updated');
+  } catch (candleError) {
+    console.error('[recordTrade] Failed to update candles:', candleError);
+    // Don't fail the trade if candle update fails
+  }
+  
   return result.trade;
 }

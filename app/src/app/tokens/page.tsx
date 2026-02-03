@@ -101,17 +101,20 @@ export default function TokensPage() {
   const formatUsd = (n: number) => {
     if (n >= 1000000) return '$' + (n / 1000000).toFixed(1) + 'M';
     if (n >= 1000) return '$' + (n / 1000).toFixed(1) + 'K';
-    if (n >= 1) return '$' + n.toFixed(0);
-    if (n >= 0.01) return '$' + n.toFixed(2);
-    if (n >= 0.0001) return '$' + n.toFixed(4);
+    if (n >= 1) return '$' + n.toFixed(2);
+    if (n >= 0.01) return '$' + n.toFixed(4);
+    if (n >= 0.0001) return '$' + n.toFixed(6);
+    if (n >= 0.000001) return '$' + n.toFixed(8);
+    return '$' + n.toFixed(10);
     return '<$0.0001';
   };
 
   const formatSol = (n: number) => {
     if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M SOL';
     if (n >= 1000) return (n / 1000).toFixed(1) + 'K SOL';
-    if (n >= 0.01) return n.toFixed(2) + ' SOL';
-    return n.toFixed(4) + ' SOL';
+    if (n >= 0.01) return n.toFixed(4) + ' SOL';
+    if (n >= 0.0001) return n.toFixed(6) + ' SOL';
+    return n.toFixed(9) + ' SOL';
   };
 
   const formatValue = (solAmount: number) => {
@@ -122,9 +125,10 @@ export default function TokensPage() {
   };
 
   const formatPrice = (price: number) => {
-    if (price < 0.000001) return '<0.000001 SOL';
-    if (price < 0.001) return price.toFixed(6) + ' SOL';
-    return price.toFixed(4) + ' SOL';
+    if (price < 0.0000000001) return '<0.0000000001 SOL';
+    if (price < 0.000001) return price.toFixed(12) + ' SOL';
+    if (price < 0.001) return price.toFixed(9) + ' SOL';
+    return price.toFixed(6) + ' SOL';
   };
 
   const formatMcap = (mcap: number) => {

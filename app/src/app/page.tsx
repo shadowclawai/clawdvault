@@ -232,6 +232,18 @@ export default async function Home() {
     <main className="min-h-screen">
       <Header />
 
+      {/* Official Token Launch Banner */}
+      <Link 
+        href="/tokens/B7KpChn4dxioeuNzzEY9eioUwEi5xt5KYegytRottJgZ"
+        className="block bg-gradient-to-r from-orange-600 via-red-500 to-orange-600 text-white py-3 px-4 text-center hover:from-orange-500 hover:via-red-400 hover:to-orange-500 transition-all"
+      >
+        <span className="inline-flex items-center gap-2 font-medium">
+          🎉 <span className="font-bold">$CLAWDVAULT</span> is LIVE! 
+          <span className="hidden sm:inline">— The official token of ClawdVault</span>
+          <span className="text-orange-200 ml-1">Trade Now →</span>
+        </span>
+      </Link>
+
       {/* Hero */}
       <section className="py-16 px-6">
         <div className="max-w-4xl mx-auto text-center">

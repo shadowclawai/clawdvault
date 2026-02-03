@@ -418,23 +418,41 @@ pub mod clawdvault {
         require!(!curve.graduated, ClawdVaultError::AlreadyGraduated);
         
         // Calculate SOL out using constant product formula
-        let new_virtual_tokens = curve.virtual_token_reserves
-            .checked_add(token_amount)
-            .ok_or(ClawdVaultError::MathOverflow)?;
-        
         let invariant = (curve.virtual_sol_reserves as u128)
             .checked_mul(curve.virtual_token_reserves as u128)
+            .ok_or(ClawdVaultError::MathOverflow)?;
+        
+        let new_virtual_tokens = curve.virtual_token_reserves
+            .checked_add(token_amount)
             .ok_or(ClawdVaultError::MathOverflow)?;
         
         let new_virtual_sol = invariant
             .checked_div(new_virtual_tokens as u128)
             .ok_or(ClawdVaultError::MathOverflow)? as u64;
         
-        let sol_out_gross = curve.virtual_sol_reserves
+        let sol_out_requested = curve.virtual_sol_reserves
             .checked_sub(new_virtual_sol)
             .ok_or(ClawdVaultError::MathOverflow)?;
         
-        require!(sol_out_gross <= curve.real_sol_reserves, ClawdVaultError::InsufficientLiquidity);
+        // Cap at available liquidity and recalculate tokens if needed
+        let (sol_out_gross, actual_token_amount) = if sol_out_requested > curve.real_sol_reserves {
+            // Cap SOL output at real reserves
+            let capped_sol = curve.real_sol_reserves;
+            // Back-calculate max tokens: tokens = k / (virtual_sol - capped_sol) - virtual_tokens
+            let target_virtual_sol = curve.virtual_sol_reserves
+                .checked_sub(capped_sol)
+                .ok_or(ClawdVaultError::MathOverflow)?;
+            require!(target_virtual_sol > 0, ClawdVaultError::InsufficientLiquidity);
+            let max_virtual_tokens = invariant
+                .checked_div(target_virtual_sol as u128)
+                .ok_or(ClawdVaultError::MathOverflow)?;
+            let max_tokens = (max_virtual_tokens as u64)
+                .checked_sub(curve.virtual_token_reserves)
+                .ok_or(ClawdVaultError::MathOverflow)?;
+            (capped_sol, max_tokens)
+        } else {
+            (sol_out_requested, token_amount)
+        };
         
         // Calculate fees (taken from output)
         let total_fee = sol_out_gross
@@ -457,7 +475,7 @@ pub mod clawdvault {
         
         require!(sol_out_net >= min_sol_out, ClawdVaultError::SlippageExceeded);
         
-        // Transfer tokens from seller to vault
+        // Transfer tokens from seller to vault (use actual_token_amount which may be capped)
         token::transfer(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
@@ -467,7 +485,7 @@ pub mod clawdvault {
                     authority: ctx.accounts.seller.to_account_info(),
                 },
             ),
-            token_amount,
+            actual_token_amount,
         )?;
         
         // Transfer SOL from vault to seller
@@ -491,17 +509,24 @@ pub mod clawdvault {
         **ctx.accounts.sol_vault.to_account_info().try_borrow_mut_lamports()? -= creator_fee;
         **ctx.accounts.creator.to_account_info().try_borrow_mut_lamports()? += creator_fee;
         
-        // Update curve state
-        curve.virtual_sol_reserves = new_virtual_sol;
-        curve.virtual_token_reserves = new_virtual_tokens;
+        // Update curve state (recalculate based on actual_token_amount)
+        let final_virtual_tokens = curve.virtual_token_reserves
+            .checked_add(actual_token_amount)
+            .ok_or(ClawdVaultError::MathOverflow)?;
+        let final_virtual_sol = invariant
+            .checked_div(final_virtual_tokens as u128)
+            .ok_or(ClawdVaultError::MathOverflow)? as u64;
+        
+        curve.virtual_sol_reserves = final_virtual_sol;
+        curve.virtual_token_reserves = final_virtual_tokens;
         curve.real_sol_reserves = curve.real_sol_reserves
             .checked_sub(sol_out_gross)
             .ok_or(ClawdVaultError::MathOverflow)?;
         curve.real_token_reserves = curve.real_token_reserves
-            .checked_add(token_amount)
+            .checked_add(actual_token_amount)
             .ok_or(ClawdVaultError::MathOverflow)?;
         
-        msg!("🔴 SELL: {} tokens -> {} lamports", token_amount, sol_out_net);
+        msg!("🔴 SELL: {} tokens -> {} lamports (requested: {})", actual_token_amount, sol_out_net, token_amount);
         msg!("Fees: {} protocol, {} creator", protocol_fee, creator_fee);
         
         emit!(TradeEvent {
@@ -509,7 +534,7 @@ pub mod clawdvault {
             trader: ctx.accounts.seller.key(),
             is_buy: false,
             sol_amount: sol_out_net,
-            token_amount,
+            token_amount: actual_token_amount,
             protocol_fee,
             creator_fee,
             virtual_sol_reserves: curve.virtual_sol_reserves,

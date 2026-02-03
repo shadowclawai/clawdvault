@@ -121,10 +121,10 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
 
   // Refetch holders when token loads (to pass creator for labeling)
   useEffect(() => {
-    if (token?.creator) {
-      fetchHolders(token.creator);
+    if (token?.mint) {
+      fetchHolders(token.creator || undefined);
     }
-  }, [token?.creator, fetchHolders]);
+  }, [token?.mint, token?.creator, fetchHolders]);
 
   // Fetch creator's username from user_profiles
   useEffect(() => {
@@ -606,7 +606,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                   <span>👥</span> Holder Distribution
                 </h3>
                 {holders.length === 0 ? (
-                  <div className="text-gray-500 text-center py-4 text-sm">Loading...</div>
+                  <div className="text-gray-500 text-center py-4 text-sm">No holder data available</div>
                 ) : (
                   <div className="space-y-3">
                     {holders.slice(0, 5).map((holder, i) => (
@@ -947,7 +947,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                   <span>👥</span> Holder Distribution
                 </h3>
                 {holders.length === 0 ? (
-                  <div className="text-gray-500 text-center py-4 text-sm">Loading...</div>
+                  <div className="text-gray-500 text-center py-4 text-sm">No holder data available</div>
                 ) : (
                   <div className="space-y-3">
                     {holders.slice(0, 5).map((holder, i) => (

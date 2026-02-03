@@ -26,6 +26,9 @@ Base URL: `https://clawdvault.com`
 | `GET` | `/api/balance` | Get wallet's token balance |
 | `GET` | `/api/sol-price` | Current SOL/USD price |
 | `GET` | `/api/network` | Network status + program info |
+| **Graduation** |
+| `GET` | `/api/graduate` | Check token graduation status |
+| `POST` | `/api/graduate` | Trigger Raydium migration (admin) |
 | **Chat** |
 | `GET` | `/api/chat` | Get chat messages for token |
 | `POST` | `/api/chat` | Send chat message |
@@ -210,11 +213,11 @@ Returns Metaplex-compatible JSON for on-chain token URI.
   "signedTransaction": "base64_signed_tx...",
   "mint": "TokenMintAddress...",
   "type": "buy",
-  "wallet": "YourWalletAddress...",
-  "solAmount": 0.5,
-  "tokenAmount": 17500000
+  "wallet": "YourWalletAddress..."
 }
 ```
+
+> **Security Note:** Trade amounts are parsed from the on-chain `TradeEvent` logs, not from client input. This prevents spoofing - you cannot lie about trade amounts.
 
 **Response:**
 ```json
@@ -223,9 +226,20 @@ Returns Metaplex-compatible JSON for on-chain token URI.
   "signature": "5xyz...",
   "explorer": "https://explorer.solana.com/tx/5xyz...",
   "slot": 123456789,
-  "blockTime": 1706886400
+  "blockTime": 1706886400,
+  "trade": {
+    "mint": "TokenMintAddress...",
+    "trader": "YourWalletAddress...",
+    "type": "buy",
+    "solAmount": 0.5,
+    "tokenAmount": 17500000,
+    "protocolFee": 0.0025,
+    "creatorFee": 0.0025
+  }
 }
 ```
+
+The `trade` object contains verified on-chain data parsed from the program's `TradeEvent` log.
 
 ### Get Trade History
 
@@ -287,6 +301,65 @@ curl "https://clawdvault.com/api/candles?mint=YOUR_MINT&interval=1m&limit=1"
 ```
 
 The last candle's `close` price is the most recent trade price.
+
+---
+
+## Graduation (Raydium Migration)
+
+When a token's bonding curve reaches 120 SOL in reserves, it becomes eligible for "graduation" - migration to a Raydium liquidity pool for traditional AMM trading.
+
+### Check Graduation Status
+
+`GET /api/graduate?mint=...`
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "mint": "TokenMintAddress...",
+    "graduated": true,
+    "migratedToRaydium": false,
+    "realSolReserves": "120000000000",
+    "realTokenReserves": "200000000000000",
+    "canMigrate": true
+  }
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `graduated` | Whether curve hit 120 SOL threshold |
+| `migratedToRaydium` | Whether Raydium pool was created |
+| `canMigrate` | `true` if graduated but not yet migrated |
+
+### Trigger Migration (Admin Only)
+
+`POST /api/graduate`
+
+> **Note:** This endpoint requires admin authentication and is disabled in production unless `ENABLE_GRADUATION_API=true` is set.
+
+```json
+{
+  "mint": "TokenMintAddress..."
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "mint": "TokenMintAddress...",
+    "releaseSignature": "5xyz...",
+    "migrationWallet": "MigrationWalletAddress...",
+    "solReleased": "120000000000",
+    "tokensReleased": "200000000000000",
+    "raydiumPool": null,
+    "message": "Assets released to migration wallet. Raydium pool creation pending."
+  }
+}
+```
 
 ---
 

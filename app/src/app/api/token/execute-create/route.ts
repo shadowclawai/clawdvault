@@ -129,7 +129,7 @@ export async function POST(request: Request) {
       try {
         const { recordTrade } = await import('@/lib/db');
         
-        const tradeResult = await recordTrade({
+        initialBuyTrade = await recordTrade({
           mint: body.mint,
           type: 'buy',
           wallet: body.creator,
@@ -138,7 +138,6 @@ export async function POST(request: Request) {
           signature: signature,
         });
         
-        initialBuyTrade = tradeResult?.trade;
         console.log(`📊 Initial buy trade recorded with reserves update: ${initialBuyTrade?.id}`);
       } catch (tradeErr) {
         console.error('Warning: Failed to record initial buy trade:', tradeErr);

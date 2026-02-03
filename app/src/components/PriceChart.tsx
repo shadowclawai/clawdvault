@@ -259,8 +259,10 @@ export default function PriceChart({
     }
 
     chartRef.current.timeScale().fitContent();
+  }, [candles, chartType, height, totalSupply, priceChange24h, solPrice]);
 
-    // Use ResizeObserver to handle container size changes (more reliable than window resize)
+  // Separate resize handling effect - only depends on chart existence
+  useEffect(() => {
     const handleResize = () => {
       if (chartRef.current && chartContainerRef.current) {
         const width = chartContainerRef.current.clientWidth;
@@ -270,23 +272,27 @@ export default function PriceChart({
       }
     };
 
-    // Initial resize
-    handleResize();
+    // Initial resize after a small delay to ensure container is measured
+    const timeoutId = setTimeout(handleResize, 100);
 
     // Watch for container size changes
-    const resizeObserver = new ResizeObserver(handleResize);
+    const resizeObserver = new ResizeObserver(() => {
+      handleResize();
+    });
+    
     if (chartContainerRef.current) {
       resizeObserver.observe(chartContainerRef.current);
     }
 
-    // Also listen to window resize as fallback
+    // Also listen to window resize
     window.addEventListener('resize', handleResize);
     
     return () => {
+      clearTimeout(timeoutId);
       resizeObserver.disconnect();
       window.removeEventListener('resize', handleResize);
     };
-  }, [candles, chartType, height, totalSupply, priceChange24h, solPrice]);
+  }, []);
 
   useEffect(() => {
     return () => {

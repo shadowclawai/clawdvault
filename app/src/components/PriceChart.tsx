@@ -70,9 +70,9 @@ export default function PriceChart({
 
   // Calculate ATH and OHLCV from visible candles
   const { athPrice, athTime, ohlcv } = useMemo(() => {
-    // Find ATH from all candles (use 24h candles for broader view)
+    // Find ATH from all candle highs (use 24h candles for broader view)
     const allCandles = candles24h.length > candles.length ? candles24h : candles;
-    let maxPrice = currentPrice; // Start with current price as baseline
+    let maxPrice = 0;
     let maxTime: number | null = null;
     
     allCandles.forEach(c => {
@@ -81,6 +81,11 @@ export default function PriceChart({
         maxTime = c.time;
       }
     });
+    
+    // If no candles, use current price as fallback
+    if (maxPrice === 0 && currentPrice > 0) {
+      maxPrice = currentPrice;
+    }
     
     // OHLCV for the visible range (last candle)
     if (candles.length === 0) {

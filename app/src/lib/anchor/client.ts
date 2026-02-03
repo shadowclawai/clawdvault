@@ -477,6 +477,53 @@ export class ClawdVaultClient {
     
     return tx;
   }
+
+  /**
+   * Build a release_for_migration transaction
+   * Only callable by protocol authority after graduation threshold is hit
+   */
+  async buildReleaseForMigrationTx(
+    authority: PublicKey,
+    mint: PublicKey,
+    migrationWallet: PublicKey,
+  ): Promise<Transaction> {
+    const [curvePDA] = findBondingCurvePDA(mint);
+    const [configPDA] = findConfigPDA();
+    const [solVaultPDA] = findSolVaultPDA(mint);
+    const tokenVault = await findTokenVaultAddress(mint, curvePDA);
+    
+    // Migration wallet's token account
+    const migrationTokenAccount = await getAssociatedTokenAddress(
+      mint,
+      migrationWallet
+    );
+    
+    // release_for_migration discriminator (first 8 bytes of sha256("global:release_for_migration"))
+    const discriminator = Buffer.from([0xec, 0x5a, 0x8b, 0x9f, 0x8b, 0x1a, 0x4c, 0x8d]);
+    
+    const instruction = new TransactionInstruction({
+      programId: PROGRAM_ID,
+      keys: [
+        { pubkey: authority, isSigner: true, isWritable: true },
+        { pubkey: configPDA, isSigner: false, isWritable: false },
+        { pubkey: curvePDA, isSigner: false, isWritable: true },
+        { pubkey: solVaultPDA, isSigner: false, isWritable: true },
+        { pubkey: tokenVault, isSigner: false, isWritable: true },
+        { pubkey: mint, isSigner: false, isWritable: false },
+        { pubkey: migrationWallet, isSigner: false, isWritable: true },
+        { pubkey: migrationTokenAccount, isSigner: false, isWritable: true },
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      ],
+      data: discriminator,
+    });
+    
+    const tx = new Transaction().add(instruction);
+    tx.feePayer = authority;
+    tx.recentBlockhash = (await this.connection.getLatestBlockhash()).blockhash;
+    
+    return tx;
+  }
 }
 
 export default ClawdVaultClient;

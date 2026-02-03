@@ -170,6 +170,7 @@ pub mod clawdvault {
         curve.real_token_reserves = TOTAL_SUPPLY;
         curve.token_total_supply = TOTAL_SUPPLY;
         curve.graduated = false;
+        curve.migrated_to_raydium = false;
         curve.created_at = Clock::get()?.unix_timestamp;
         curve.bump = bump;
         curve.sol_vault_bump = sol_vault_bump;
@@ -545,20 +546,85 @@ pub mod clawdvault {
         Ok(())
     }
 
-    /// Migrate graduated token to Raydium
-    pub fn graduate(ctx: Context<Graduate>) -> Result<()> {
+    /// Release graduated token's assets to migration wallet for Raydium pool creation
+    /// Only callable by protocol authority after graduation threshold is hit
+    pub fn release_for_migration(ctx: Context<ReleaseForMigration>) -> Result<()> {
         let curve = &ctx.accounts.bonding_curve;
+        let mint_key = curve.mint;
+        let bump = curve.bump;
+        let sol_vault_bump = curve.sol_vault_bump;
         
         require!(curve.graduated, ClawdVaultError::NotGraduated);
+        require!(!curve.migrated_to_raydium, ClawdVaultError::AlreadyMigrated);
         
-        // TODO: Implement Raydium migration
-        // 1. Create Raydium pool
-        // 2. Add liquidity (remaining SOL + remaining tokens)
-        // 3. Burn LP tokens or send to creator
+        let sol_amount = curve.real_sol_reserves;
+        let token_amount = curve.real_token_reserves;
         
-        msg!("🚀 Graduating to Raydium...");
-        msg!("SOL in curve: {}", curve.real_sol_reserves);
-        msg!("Tokens remaining: {}", curve.real_token_reserves);
+        msg!("🚀 Releasing assets for Raydium migration...");
+        msg!("SOL to transfer: {} lamports", sol_amount);
+        msg!("Tokens to transfer: {}", token_amount);
+        
+        // Build signer seeds for bonding curve PDA
+        let curve_seeds = &[
+            CURVE_SEED,
+            mint_key.as_ref(),
+            &[bump],
+        ];
+        let curve_signer = &[&curve_seeds[..]];
+        
+        // Build signer seeds for SOL vault PDA
+        let vault_seeds = &[
+            VAULT_SEED,
+            mint_key.as_ref(),
+            &[sol_vault_bump],
+        ];
+        let vault_signer = &[&vault_seeds[..]];
+        
+        // Transfer SOL from vault to migration wallet
+        if sol_amount > 0 {
+            let sol_vault_info = ctx.accounts.sol_vault.to_account_info();
+            let migration_wallet_info = ctx.accounts.migration_wallet.to_account_info();
+            
+            **sol_vault_info.try_borrow_mut_lamports()? -= sol_amount;
+            **migration_wallet_info.try_borrow_mut_lamports()? += sol_amount;
+            
+            msg!("✅ Transferred {} SOL to migration wallet", sol_amount);
+        }
+        
+        // Transfer tokens from vault to migration wallet's token account
+        if token_amount > 0 {
+            token::transfer(
+                CpiContext::new_with_signer(
+                    ctx.accounts.token_program.to_account_info(),
+                    Transfer {
+                        from: ctx.accounts.token_vault.to_account_info(),
+                        to: ctx.accounts.migration_token_account.to_account_info(),
+                        authority: ctx.accounts.bonding_curve.to_account_info(),
+                    },
+                    curve_signer,
+                ),
+                token_amount,
+            )?;
+            
+            msg!("✅ Transferred {} tokens to migration wallet", token_amount);
+        }
+        
+        // Mark as migrated
+        let curve_mut = &mut ctx.accounts.bonding_curve;
+        curve_mut.migrated_to_raydium = true;
+        curve_mut.real_sol_reserves = 0;
+        curve_mut.real_token_reserves = 0;
+        
+        // Emit event
+        emit!(MigrationReleasedEvent {
+            mint: mint_key,
+            sol_amount,
+            token_amount,
+            migration_wallet: ctx.accounts.migration_wallet.key(),
+            timestamp: Clock::get()?.unix_timestamp,
+        });
+        
+        msg!("🎓 Assets released for Raydium migration!");
         
         Ok(())
     }
@@ -593,6 +659,7 @@ pub struct BondingCurve {
     pub real_token_reserves: u64,
     pub token_total_supply: u64,
     pub graduated: bool,
+    pub migrated_to_raydium: bool,
     pub created_at: i64,
     pub bump: u8,
     pub sol_vault_bump: u8,
@@ -608,6 +675,7 @@ impl BondingCurve {
         8 + // real_token_reserves
         8 + // token_total_supply
         1 + // graduated
+        1 + // migrated_to_raydium
         8 + // created_at
         1 + // bump
         1;  // sol_vault_bump
@@ -846,19 +914,67 @@ pub struct Sell<'info> {
 }
 
 #[derive(Accounts)]
-pub struct Graduate<'info> {
-    #[account(mut)]
+pub struct ReleaseForMigration<'info> {
+    /// Protocol authority (only authority can trigger migration)
+    #[account(
+        mut,
+        constraint = authority.key() == config.authority @ ClawdVaultError::Unauthorized,
+    )]
     pub authority: Signer<'info>,
     
+    /// Protocol config
+    #[account(
+        seeds = [b"config"],
+        bump = config.bump,
+    )]
+    pub config: Account<'info, Config>,
+    
+    /// Bonding curve being migrated
     #[account(
         mut,
         seeds = [CURVE_SEED, bonding_curve.mint.as_ref()],
         bump = bonding_curve.bump,
         constraint = bonding_curve.graduated @ ClawdVaultError::NotGraduated,
+        constraint = !bonding_curve.migrated_to_raydium @ ClawdVaultError::AlreadyMigrated,
     )]
     pub bonding_curve: Account<'info, BondingCurve>,
     
-    // TODO: Add Raydium accounts for migration
+    /// SOL vault holding the curve's SOL
+    #[account(
+        mut,
+        seeds = [VAULT_SEED, bonding_curve.mint.as_ref()],
+        bump = bonding_curve.sol_vault_bump,
+    )]
+    pub sol_vault: SystemAccount<'info>,
+    
+    /// Token vault holding remaining tokens
+    #[account(
+        mut,
+        seeds = [TOKEN_VAULT_SEED, bonding_curve.mint.as_ref()],
+        bump,
+        token::mint = token_mint,
+        token::authority = bonding_curve,
+    )]
+    pub token_vault: Account<'info, TokenAccount>,
+    
+    /// The token mint
+    pub token_mint: Account<'info, Mint>,
+    
+    /// Migration wallet that will receive assets for Raydium pool creation
+    /// CHECK: Any wallet can be the migration target, validated by authority
+    #[account(mut)]
+    pub migration_wallet: UncheckedAccount<'info>,
+    
+    /// Migration wallet's token account for the token
+    #[account(
+        mut,
+        token::mint = token_mint,
+        token::authority = migration_wallet,
+    )]
+    pub migration_token_account: Account<'info, TokenAccount>,
+    
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
 }
 
 // ============================================================================
@@ -896,6 +1012,15 @@ pub struct GraduationEvent {
     pub timestamp: i64,
 }
 
+#[event]
+pub struct MigrationReleasedEvent {
+    pub mint: Pubkey,
+    pub sol_amount: u64,
+    pub token_amount: u64,
+    pub migration_wallet: Pubkey,
+    pub timestamp: i64,
+}
+
 // ============================================================================
 // ERRORS
 // ============================================================================
@@ -910,6 +1035,9 @@ pub enum ClawdVaultError {
     
     #[msg("Token has already graduated to Raydium")]
     AlreadyGraduated,
+    
+    #[msg("Token has already been migrated to Raydium pool")]
+    AlreadyMigrated,
     
     #[msg("Token has not graduated yet")]
     NotGraduated,

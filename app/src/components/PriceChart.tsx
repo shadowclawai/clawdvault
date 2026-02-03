@@ -46,24 +46,38 @@ export default function PriceChart({
   const seriesRef = useRef<ISeriesApi<'Line'> | ISeriesApi<'Candlestick'> | null>(null);
   
   const [candles, setCandles] = useState<Candle[]>([]);
+  const [candles24h, setCandles24h] = useState<Candle[]>([]);
   const [loading, setLoading] = useState(true);
   const [chartType, setChartType] = useState<ChartType>('line');
   const [timeInterval, setTimeInterval] = useState<Interval>('5m');
 
-  // Calculate stats from candles
-  const { priceChange, athPrice, athTime, ohlcv } = useMemo(() => {
+  // Calculate 24h price change from 1h candles
+  const priceChange24h = useMemo(() => {
+    if (candles24h.length < 2) return 0;
+    
+    const now = Math.floor(Date.now() / 1000);
+    const oneDayAgo = now - 24 * 60 * 60;
+    
+    // Find candle closest to 24h ago
+    const oldCandle = candles24h.find(c => c.time >= oneDayAgo) || candles24h[0];
+    const currentCandle = candles24h[candles24h.length - 1];
+    
+    if (!oldCandle || !currentCandle || oldCandle.close === 0) return 0;
+    
+    return ((currentCandle.close - oldCandle.close) / oldCandle.close) * 100;
+  }, [candles24h]);
+
+  // Calculate ATH and OHLCV from visible candles
+  const { athPrice, athTime, ohlcv } = useMemo(() => {
     if (candles.length === 0) {
-      return { priceChange: 0, athPrice: 0, athTime: null, ohlcv: null };
+      return { athPrice: 0, athTime: null, ohlcv: null };
     }
     
-    const firstClose = candles[0].close;
-    const lastClose = candles[candles.length - 1].close;
-    const change = ((lastClose - firstClose) / firstClose) * 100;
-    
-    // Find ATH from candles
+    // Find ATH from all candles (use 24h candles for broader view)
+    const allCandles = candles24h.length > candles.length ? candles24h : candles;
     let maxPrice = 0;
     let maxTime: number | null = null;
-    candles.forEach(c => {
+    allCandles.forEach(c => {
       if (c.high > maxPrice) {
         maxPrice = c.high;
         maxTime = c.time;
@@ -75,7 +89,6 @@ export default function PriceChart({
     const totalVolume = candles.reduce((sum, c) => sum + c.volume, 0);
     
     return {
-      priceChange: change,
       athPrice: maxPrice,
       athTime: maxTime,
       ohlcv: {
@@ -86,12 +99,12 @@ export default function PriceChart({
         volume: totalVolume,
       }
     };
-  }, [candles]);
+  }, [candles, candles24h]);
 
   // Calculate ATH progress (how close current price is to ATH)
   const athProgress = athPrice > 0 ? (currentPrice / athPrice) * 100 : 100;
 
-  // Fetch candles
+  // Fetch candles for chart display
   useEffect(() => {
     const fetchCandles = async () => {
       setLoading(true);
@@ -111,6 +124,25 @@ export default function PriceChart({
     const refreshInterval = window.setInterval(fetchCandles, 30000);
     return () => window.clearInterval(refreshInterval);
   }, [mint, timeInterval]);
+
+  // Fetch 24h candles separately for accurate 24h change calculation
+  useEffect(() => {
+    const fetch24hCandles = async () => {
+      try {
+        // Fetch 1h candles for past 24+ hours
+        const res = await fetch(`/api/candles?mint=${mint}&interval=1h&limit=30`);
+        const data = await res.json();
+        setCandles24h(data.candles?.length > 0 ? data.candles : []);
+      } catch (err) {
+        console.error('Failed to fetch 24h candles:', err);
+      }
+    };
+
+    fetch24hCandles();
+    // Refresh 24h data every 5 minutes
+    const refreshInterval = window.setInterval(fetch24hCandles, 5 * 60 * 1000);
+    return () => window.clearInterval(refreshInterval);
+  }, [mint]);
 
   // Create/update chart
   useEffect(() => {
@@ -170,7 +202,7 @@ export default function PriceChart({
       }
     } else {
       seriesRef.current = chartRef.current.addLineSeries({
-        color: priceChange >= 0 ? '#22c55e' : '#ef4444',
+        color: priceChange24h >= 0 ? '#22c55e' : '#ef4444',
         lineWidth: 2,
         crosshairMarkerVisible: true,
         crosshairMarkerRadius: 4,
@@ -195,7 +227,7 @@ export default function PriceChart({
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [candles, chartType, height, totalSupply, priceChange]);
+  }, [candles, chartType, height, totalSupply, priceChange24h]);
 
   useEffect(() => {
     return () => {
@@ -237,11 +269,11 @@ export default function PriceChart({
               {marketCapUsd ? formatMcap(marketCapUsd) : formatMcapSol(marketCapSol)}
             </div>
             <div className="flex items-center gap-2 mt-1">
-              <span className={`text-sm font-medium ${priceChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {priceChange >= 0 ? '+' : ''}{marketCapUsd 
-                  ? formatMcap(Math.abs(priceChange / 100 * marketCapUsd))
-                  : formatMcapSol(Math.abs(priceChange / 100 * marketCapSol))
-                } ({priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%)
+              <span className={`text-sm font-medium ${priceChange24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {priceChange24h >= 0 ? '+' : ''}{marketCapUsd 
+                  ? formatMcap(Math.abs(priceChange24h / 100 * marketCapUsd))
+                  : formatMcapSol(Math.abs(priceChange24h / 100 * marketCapSol))
+                } ({priceChange24h >= 0 ? '+' : ''}{priceChange24h.toFixed(2)}%)
               </span>
               <span className="text-gray-500 text-sm">24hr</span>
             </div>

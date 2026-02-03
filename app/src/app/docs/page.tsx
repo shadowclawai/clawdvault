@@ -1,622 +1,257 @@
-import Link from 'next/link';
+'use client';
+
+import dynamic from 'next/dynamic';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import 'swagger-ui-react/swagger-ui.css';
 
-export const metadata = {
-  title: 'API Documentation | ClawdVault',
-  description: 'API documentation for ClawdVault token launchpad',
-};
-
-// Code block component for consistent styling
-function CodeBlock({ children, title }: { children: string; title?: string }) {
-  return (
-    <div className="rounded-lg overflow-hidden border border-gray-700 mb-4">
-      {title && (
-        <div className="bg-gray-800 px-4 py-2 border-b border-gray-700">
-          <span className="text-gray-400 text-xs font-mono">{title}</span>
-        </div>
-      )}
-      <pre className="bg-[#0d1117] p-4 text-sm overflow-x-auto">
-        <code className="text-[#e6edf3] font-mono leading-relaxed">{children}</code>
-      </pre>
+// Dynamic import to avoid SSR issues
+const SwaggerUI = dynamic(() => import('swagger-ui-react'), { 
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center py-20">
+      <div className="text-gray-400">Loading API docs...</div>
     </div>
-  );
-}
+  ),
+});
 
 export default function DocsPage() {
   return (
-    <main className="min-h-screen flex flex-col">
+    <main className="min-h-screen flex flex-col bg-[#1a1a2e]">
       <Header />
 
-      <section className="py-12 px-6 flex-1">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold text-white mb-2">API Documentation</h1>
-          <p className="text-gray-400 mb-8">
-            Build integrations with ClawdVault. Perfect for AI agents, bots, and developers.
-          </p>
-
-          {/* Base URL */}
-          <div className="bg-gray-800/50 rounded-xl p-4 mb-8 border border-gray-700">
-            <div className="text-gray-400 text-sm mb-1">Base URL</div>
-            <code className="text-orange-400 text-lg font-mono">https://clawdvault.com/api</code>
-          </div>
-
-          {/* Endpoints */}
-          <div className="space-y-8">
-            
-            {/* How It Works */}
-            <section className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden mb-8">
-              <div className="bg-orange-900/30 border-b border-gray-800 px-4 py-3">
-                <span className="text-orange-400 font-medium">🔐 Non-Custodial Flow</span>
-              </div>
-              <div className="p-4">
-                <p className="text-gray-400 mb-4">All transactions use a prepare → sign → execute flow. Your private key never leaves your device.</p>
-                <div className="bg-[#0d1117] border border-gray-700 rounded-lg p-4 font-mono text-sm">
-                  <span className="text-blue-400">1. Prepare</span> <span className="text-gray-500">→</span> <span className="text-purple-400">2. Sign Locally</span> <span className="text-gray-500">→</span> <span className="text-green-400">3. Execute</span>
-                </div>
-              </div>
-            </section>
-
-            {/* Create Token - Prepare */}
-            <section className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-              <div className="bg-green-900/30 border-b border-gray-800 px-4 py-3 flex items-center gap-3">
-                <span className="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">POST</span>
-                <code className="text-white font-mono">/api/token/prepare-create</code>
-              </div>
-              <div className="p-4">
-                <p className="text-gray-400 mb-4">Step 1: Prepare a token creation transaction.</p>
-                
-                <h4 className="text-white font-medium mb-2">Request Body</h4>
-                <CodeBlock title="JSON">{`{
-  "creator": "YourWalletAddress...",
-  "name": "Crab Token",
-  "symbol": "CRAB",
-  "initialBuy": 0.5
-}`}</CodeBlock>
-
-                <h4 className="text-white font-medium mb-2">Response</h4>
-                <CodeBlock title="JSON">{`{
-  "success": true,
-  "transaction": "base64_partially_signed_tx...",
-  "mint": "NewMintAddress...",
-  "programId": "GUyF2TVe32Cid4iGVt2F6wPYDhLSVmTUZBj2974outYM",
-  "network": "mainnet-beta",
-  "initialBuy": {
-    "sol": 0.5,
-    "estimatedTokens": 17500000
-  }
-}`}</CodeBlock>
-                <p className="text-gray-500 text-sm mt-2">Transaction is pre-signed by mint keypair. Sign with your wallet, then call execute-create.</p>
-              </div>
-            </section>
-
-            {/* Create Token - Execute */}
-            <section className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-              <div className="bg-green-900/30 border-b border-gray-800 px-4 py-3 flex items-center gap-3">
-                <span className="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">POST</span>
-                <code className="text-white font-mono">/api/token/execute-create</code>
-              </div>
-              <div className="p-4">
-                <p className="text-gray-400 mb-4">Step 2: Execute the signed token creation transaction.</p>
-                
-                <h4 className="text-white font-medium mb-2">Request Body</h4>
-                <CodeBlock title="JSON">{`{
-  "signedTransaction": "base64_signed_tx...",
-  "mint": "NewMintAddress...",
-  "creator": "YourWalletAddress...",
-  "name": "Crab Token",
-  "symbol": "CRAB",
-  "description": "...",
-  "image": "https://...",
-  "twitter": "@crabtoken",
-  "telegram": "@crabtokenchat",
-  "website": "crabtoken.xyz"
-}`}</CodeBlock>
-
-                <h4 className="text-white font-medium mb-2">Response</h4>
-                <CodeBlock title="JSON">{`{
-  "success": true,
-  "signature": "5xyz...",
-  "mint": "NewMintAddress...",
-  "token": { ... },
-  "initialBuyTrade": {
-    "id": "trade_id...",
-    "solAmount": 0.5,
-    "tokenAmount": 17500000
-  },
-  "explorer": "https://explorer.solana.com/tx/..."
-}`}</CodeBlock>
-              </div>
-            </section>
-
-            {/* Get Tokens */}
-            <section className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-              <div className="bg-blue-900/30 border-b border-gray-800 px-4 py-3 flex items-center gap-3">
-                <span className="bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded">GET</span>
-                <code className="text-white font-mono">/api/tokens</code>
-              </div>
-              <div className="p-4">
-                <p className="text-gray-400 mb-4">List all tokens with optional sorting.</p>
-                
-                <h4 className="text-white font-medium mb-2">Query Parameters</h4>
-                <ul className="text-gray-400 text-sm space-y-1 mb-4 ml-4">
-                  <li><code className="text-cyan-400">sort</code> — created_at, market_cap, volume, price</li>
-                  <li><code className="text-cyan-400">page</code> — Page number (default: 1)</li>
-                  <li><code className="text-cyan-400">limit</code> — Results per page (default: 50)</li>
-                </ul>
-
-                <h4 className="text-white font-medium mb-2">Response</h4>
-                <CodeBlock title="JSON">{`{
-  "tokens": [
-    {
-      "mint": "ABC123...",
-      "name": "Crab Token",
-      "symbol": "CRAB",
-      "price_sol": 0.000000028,
-      "market_cap_sol": 30.5,
-      "volume_24h": 5.2,
-      ...
-    }
-  ],
-  "total": 42,
-  "page": 1,
-  "per_page": 50
-}`}</CodeBlock>
-              </div>
-            </section>
-
-            {/* Get Token */}
-            <section className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-              <div className="bg-blue-900/30 border-b border-gray-800 px-4 py-3 flex items-center gap-3">
-                <span className="bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded">GET</span>
-                <code className="text-white font-mono">/api/tokens/[mint]</code>
-              </div>
-              <div className="p-4">
-                <p className="text-gray-400 mb-4">Get details for a specific token including recent trades.</p>
-                
-                <h4 className="text-white font-medium mb-2">Response</h4>
-                <CodeBlock title="JSON">{`{
-  "token": {
-    "mint": "ABC123...",
-    "name": "Crab Token",
-    "symbol": "CRAB",
-    "description": "...",
-    "image": "https://...",
-    "price_sol": 0.000000028,
-    "market_cap_sol": 30.5,
-    "virtual_sol_reserves": 30,
-    "virtual_token_reserves": 1073000000,
-    "graduated": false,
-    ...
-  },
-  "trades": [ ... ]
-}`}</CodeBlock>
-              </div>
-            </section>
-
-            {/* Get Quote */}
-            <section className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-              <div className="bg-blue-900/30 border-b border-gray-800 px-4 py-3 flex items-center gap-3">
-                <span className="bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded">GET</span>
-                <code className="text-white font-mono">/api/trade?mint=...&amp;type=buy&amp;amount=0.5</code>
-              </div>
-              <div className="p-4">
-                <p className="text-gray-400 mb-4">Get a quote without executing. Useful for previewing trades.</p>
-                
-                <h4 className="text-white font-medium mb-2">Response</h4>
-                <CodeBlock title="JSON">{`{
-  "input": 0.5,
-  "output": 17857142,
-  "price_impact": 1.67,
-  "fee": 0.005,
-  "current_price": 0.000000028
-}`}</CodeBlock>
-              </div>
-            </section>
-
-            {/* On-Chain Trade - Prepare */}
-            <section className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-              <div className="bg-purple-900/30 border-b border-gray-800 px-4 py-3 flex items-center gap-3">
-                <span className="bg-purple-500 text-white text-xs font-bold px-2 py-1 rounded">POST</span>
-                <code className="text-white font-mono">/api/trade/prepare</code>
-                <span className="text-purple-400 text-xs">ON-CHAIN</span>
-              </div>
-              <div className="p-4">
-                <p className="text-gray-400 mb-4">Prepare an on-chain trade transaction for wallet signing. Returns a transaction to sign with Phantom/Solflare.</p>
-                
-                <h4 className="text-white font-medium mb-2">Request Body</h4>
-                <CodeBlock title="JSON">{`{
-  "mint": "ABC123...",
-  "type": "buy",
-  "amount": 0.5,
-  "wallet": "YourWallet...",
-  "slippage": 0.01
-}`}</CodeBlock>
-                <ul className="text-gray-400 text-sm space-y-1 mb-4 ml-4">
-                  <li><code className="text-cyan-400">type</code> — &quot;buy&quot; (SOL → tokens) or &quot;sell&quot; (tokens → SOL)</li>
-                  <li><code className="text-cyan-400">amount</code> — SOL for buy, tokens for sell</li>
-                  <li><code className="text-cyan-400">wallet</code> — Your Solana wallet address</li>
-                  <li><code className="text-cyan-400">slippage</code> — Tolerance (default 0.01 = 1%)</li>
-                </ul>
-
-                <h4 className="text-white font-medium mb-2">Response</h4>
-                <CodeBlock title="JSON">{`{
-  "success": true,
-  "transaction": "base64...",
-  "type": "buy",
-  "input": { "sol": 0.5, "fee": 0.005 },
-  "output": { "tokens": 17857142, "minTokens": 17678570 },
-  "priceImpact": 1.67,
-  "currentPrice": 0.000028,
-  "onChain": true
-}`}</CodeBlock>
-              </div>
-            </section>
-
-            {/* On-Chain Trade - Execute */}
-            <section className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-              <div className="bg-purple-900/30 border-b border-gray-800 px-4 py-3 flex items-center gap-3">
-                <span className="bg-purple-500 text-white text-xs font-bold px-2 py-1 rounded">POST</span>
-                <code className="text-white font-mono">/api/trade/execute</code>
-                <span className="text-purple-400 text-xs">ON-CHAIN</span>
-              </div>
-              <div className="p-4">
-                <p className="text-gray-400 mb-4">Execute a signed trade transaction. Amounts are verified from on-chain TradeEvent logs (anti-spoof).</p>
-                
-                <h4 className="text-white font-medium mb-2">Request Body</h4>
-                <CodeBlock title="JSON">{`{
-  "signedTransaction": "base64...",
-  "mint": "ABC123...",
-  "type": "buy",
-  "wallet": "YourWallet..."
-}`}</CodeBlock>
-
-                <h4 className="text-white font-medium mb-2">Response</h4>
-                <CodeBlock title="JSON">{`{
-  "success": true,
-  "signature": "5xyz...",
-  "explorer": "https://explorer.solana.com/tx/...",
-  "slot": 123456789,
-  "blockTime": 1706918400,
-  "trade": {
-    "id": "db_trade_id...",
-    "mint": "ABC123...",
-    "trader": "YourWallet...",
-    "type": "buy",
-    "solAmount": 0.5,
-    "tokenAmount": 17857142,
-    "protocolFee": 0.0025,
-    "creatorFee": 0.0025
-  }
-}`}</CodeBlock>
-                <p className="text-gray-500 text-sm mt-2">Trade amounts in response are parsed from on-chain event, not client input.</p>
-              </div>
-            </section>
-
-            {/* Candles (OHLCV) */}
-            <section className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-              <div className="bg-blue-900/30 border-b border-gray-800 px-4 py-3 flex items-center gap-3">
-                <span className="bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded">GET</span>
-                <code className="text-white font-mono">/api/candles?mint=...&amp;interval=5m&amp;limit=100</code>
-              </div>
-              <div className="p-4">
-                <p className="text-gray-400 mb-4">Get OHLCV candle data for charting. This is the recommended source of truth for price display.</p>
-                
-                <h4 className="text-white font-medium mb-2">Query Parameters</h4>
-                <ul className="text-gray-400 text-sm space-y-1 mb-4 ml-4">
-                  <li><code className="text-cyan-400">mint</code> — Token mint address (required)</li>
-                  <li><code className="text-cyan-400">interval</code> — Candle interval: 1m, 5m, 15m, 1h, 1d (default: 5m)</li>
-                  <li><code className="text-cyan-400">limit</code> — Number of candles, max 1000 (default: 100)</li>
-                </ul>
-
-                <h4 className="text-white font-medium mb-2">Response</h4>
-                <CodeBlock title="JSON">{`{
-  "mint": "ABC123...",
-  "interval": "5m",
-  "candles": [
-    {
-      "time": 1706918400,
-      "open": 0.000028,
-      "high": 0.000032,
-      "low": 0.000027,
-      "close": 0.000031,
-      "volume": 2.5
-    }
-  ]
-}`}</CodeBlock>
-                <p className="text-gray-500 text-sm mt-2">Use the last candle&apos;s <code className="text-cyan-400">close</code> price for current price display.</p>
-              </div>
-            </section>
-
-            {/* Trade History */}
-            <section className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-              <div className="bg-blue-900/30 border-b border-gray-800 px-4 py-3 flex items-center gap-3">
-                <span className="bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded">GET</span>
-                <code className="text-white font-mono">/api/trades?mint=...</code>
-              </div>
-              <div className="p-4">
-                <p className="text-gray-400 mb-4">Get trade history for a token.</p>
-                
-                <h4 className="text-white font-medium mb-2">Query Parameters</h4>
-                <ul className="text-gray-400 text-sm space-y-1 mb-4 ml-4">
-                  <li><code className="text-cyan-400">mint</code> — Token mint address (required)</li>
-                  <li><code className="text-cyan-400">limit</code> — Max results (default: 50)</li>
-                  <li><code className="text-cyan-400">before</code> — Cursor for pagination (ISO date)</li>
-                </ul>
-
-                <h4 className="text-white font-medium mb-2">Response</h4>
-                <CodeBlock title="JSON">{`{
-  "trades": [
-    {
-      "id": "...",
-      "type": "buy",
-      "sol_amount": 0.5,
-      "token_amount": 17857142,
-      "price": 0.000028,
-      "trader": "WalletAddress...",
-      "signature": "5xyz...",
-      "created_at": "2024-02-03T..."
-    }
-  ]
-}`}</CodeBlock>
-              </div>
-            </section>
-
-            {/* On-Chain Stats */}
-            <section className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-              <div className="bg-blue-900/30 border-b border-gray-800 px-4 py-3 flex items-center gap-3">
-                <span className="bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded">GET</span>
-                <code className="text-white font-mono">/api/stats?mint=...</code>
-              </div>
-              <div className="p-4">
-                <p className="text-gray-400 mb-4">Get on-chain bonding curve state directly from Solana.</p>
-                
-                <h4 className="text-white font-medium mb-2">Response</h4>
-                <CodeBlock title="JSON">{`{
-  "success": true,
-  "mint": "ABC123...",
-  "onChain": {
-    "totalSupply": 1000000000,
-    "bondingCurveBalance": 900000000,
-    "circulatingSupply": 100000000,
-    "bondingCurveSol": 5.5,
-    "virtualSolReserves": 35.5,
-    "virtualTokenReserves": 900000000,
-    "price": 0.000039,
-    "marketCap": 39,
-    "graduated": false
-  }
-}`}</CodeBlock>
-              </div>
-            </section>
-
-            {/* Graduation Status */}
-            <section className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-              <div className="bg-blue-900/30 border-b border-gray-800 px-4 py-3 flex items-center gap-3">
-                <span className="bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded">GET</span>
-                <code className="text-white font-mono">/api/graduate?mint=...</code>
-              </div>
-              <div className="p-4">
-                <p className="text-gray-400 mb-4">Check if a token has graduated to Raydium. Tokens graduate when bonding curve reaches 120 SOL.</p>
-                
-                <h4 className="text-white font-medium mb-2">Response</h4>
-                <CodeBlock title="JSON">{`{
-  "success": true,
-  "data": {
-    "mint": "ABC123...",
-    "graduated": true,
-    "migratedToRaydium": true,
-    "realSolReserves": "120000000000",
-    "realTokenReserves": "200000000000000",
-    "canMigrate": false
-  }
-}`}</CodeBlock>
-              </div>
-            </section>
-
-            {/* Jupiter Trading */}
-            <section className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-              <div className="bg-orange-900/30 border-b border-gray-800 px-4 py-3 flex items-center gap-3">
-                <span className="bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded">POST</span>
-                <code className="text-white font-mono">/api/trade/jupiter</code>
-                <span className="text-orange-400 text-xs">GRADUATED TOKENS</span>
-              </div>
-              <div className="p-4">
-                <p className="text-gray-400 mb-4">Get a Jupiter swap quote and transaction for graduated tokens. After graduation, tokens trade on Raydium via Jupiter aggregator.</p>
-                
-                <h4 className="text-white font-medium mb-2">Request Body</h4>
-                <CodeBlock title="JSON">{`{
-  "mint": "ABC123...",
-  "action": "buy",
-  "amount": "100000000",
-  "userPublicKey": "YourWallet...",
-  "slippageBps": 50
-}`}</CodeBlock>
-                <ul className="text-gray-400 text-sm space-y-1 mb-4 ml-4">
-                  <li><code className="text-cyan-400">amount</code> — Lamports (buy) or token units (sell)</li>
-                  <li><code className="text-cyan-400">slippageBps</code> — Slippage in basis points (50 = 0.5%)</li>
-                </ul>
-
-                <h4 className="text-white font-medium mb-2">Response</h4>
-                <CodeBlock title="JSON">{`{
-  "success": true,
-  "graduated": true,
-  "quote": {
-    "inAmount": "100000000",
-    "outAmount": "35000000000",
-    "priceImpactPct": "0.5"
-  },
-  "transaction": "base64_versioned_tx...",
-  "lastValidBlockHeight": 123456789
-}`}</CodeBlock>
-                <p className="text-gray-500 text-sm mt-2">Jupiter uses VersionedTransactions. Sign and send to <code className="text-cyan-400">/api/trade/jupiter/execute</code>.</p>
-              </div>
-            </section>
-
-            {/* SOL Price */}
-            <section className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-              <div className="bg-blue-900/30 border-b border-gray-800 px-4 py-3 flex items-center gap-3">
-                <span className="bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded">GET</span>
-                <code className="text-white font-mono">/api/sol-price</code>
-              </div>
-              <div className="p-4">
-                <p className="text-gray-400 mb-4">Get current SOL price in USD (cached, updates every 60s).</p>
-                
-                <h4 className="text-white font-medium mb-2">Response</h4>
-                <CodeBlock title="JSON">{`{
-  "price": 104.13,
-  "valid": true,
-  "cached": true,
-  "source": "coingecko",
-  "age": 45
-}`}</CodeBlock>
-              </div>
-            </section>
-
-            {/* Upload Image */}
-            <section className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-              <div className="bg-green-900/30 border-b border-gray-800 px-4 py-3 flex items-center gap-3">
-                <span className="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">POST</span>
-                <code className="text-white font-mono">/api/upload</code>
-              </div>
-              <div className="p-4">
-                <p className="text-gray-400 mb-4">Upload an image for token creation. Returns a URL to use in /api/create.</p>
-                
-                <h4 className="text-white font-medium mb-2">Request</h4>
-                <div className="bg-[#0d1117] border border-gray-700 rounded-lg p-4 mb-4">
-                  <p className="text-[#e6edf3] text-sm font-mono">
-                    Content-Type: <span className="text-orange-400">multipart/form-data</span><br/>
-                    Field: <span className="text-cyan-400">file</span> <span className="text-gray-500">(PNG, JPG, GIF, WebP, max 5MB)</span>
-                  </p>
-                </div>
-
-                <h4 className="text-white font-medium mb-2">Response</h4>
-                <CodeBlock title="JSON">{`{
-  "success": true,
-  "url": "https://...supabase.co/storage/...",
-  "filename": "abc123.png"
-}`}</CodeBlock>
-              </div>
-            </section>
-
-          </div>
-
-          {/* Bonding Curve Info */}
-          <div className="mt-12">
-            <h2 className="text-2xl font-bold text-white mb-4">Bonding Curve</h2>
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-4">
-              <p className="text-gray-400">
-                ClawdVault uses a constant product (x*y=k) bonding curve:
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <div className="bg-[#0d1117] border border-gray-700 rounded-lg p-4">
-                  <div className="text-gray-500 text-xs uppercase tracking-wider mb-1">Initial Virtual SOL</div>
-                  <div className="text-white text-lg font-mono">30 SOL</div>
-                </div>
-                <div className="bg-[#0d1117] border border-gray-700 rounded-lg p-4">
-                  <div className="text-gray-500 text-xs uppercase tracking-wider mb-1">Initial Virtual Tokens</div>
-                  <div className="text-white text-lg font-mono">1,073,000,000</div>
-                </div>
-                <div className="bg-[#0d1117] border border-gray-700 rounded-lg p-4">
-                  <div className="text-gray-500 text-xs uppercase tracking-wider mb-1">Starting Price</div>
-                  <div className="text-white text-lg font-mono">~0.000000028 SOL</div>
-                </div>
-                <div className="bg-[#0d1117] border border-gray-700 rounded-lg p-4">
-                  <div className="text-gray-500 text-xs uppercase tracking-wider mb-1">Graduation Threshold</div>
-                  <div className="text-white text-lg font-mono">120 SOL raised</div>
-                </div>
-              </div>
-              <div className="bg-[#0d1117] border border-gray-700 rounded-lg p-4 mt-4">
-                <div className="text-gray-500 text-xs uppercase tracking-wider mb-2">Fee Breakdown</div>
-                <div className="text-sm font-mono space-y-2">
-                  <div className="flex gap-4">
-                    <span className="text-white">Bonding Curve: 1%</span>
-                    <span className="text-gray-500">→</span>
-                    <span className="text-green-400">0.5% creator</span>
-                    <span className="text-gray-500">+</span>
-                    <span className="text-orange-400">0.5% protocol</span>
-                  </div>
-                  <div className="flex gap-4">
-                    <span className="text-white">After Graduation: ~0.25%</span>
-                    <span className="text-gray-500">→</span>
-                    <span className="text-blue-400">Raydium swap fee (to LP)</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Wallet Setup */}
-          <div className="mt-12">
-            <h2 className="text-2xl font-bold text-white mb-4">Connecting Your Wallet</h2>
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-4">
-              <p className="text-gray-400">
-                ClawdVault uses <a href="https://phantom.app" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300">Phantom</a> wallet for Solana transactions.
-              </p>
-              
-              <div className="space-y-3">
-                <div className="flex items-start gap-3">
-                  <span className="bg-purple-500/20 text-purple-400 text-sm font-bold px-2 py-1 rounded">1</span>
-                  <div>
-                    <div className="text-white font-medium">Install Phantom</div>
-                    <p className="text-gray-500 text-sm">Download from <a href="https://phantom.app" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300">phantom.app</a> (browser extension or mobile app)</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-start gap-3">
-                  <span className="bg-purple-500/20 text-purple-400 text-sm font-bold px-2 py-1 rounded">2</span>
-                  <div>
-                    <div className="text-white font-medium">Create or Import Wallet</div>
-                    <p className="text-gray-500 text-sm">Set up a new wallet or import existing with your seed phrase</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-start gap-3">
-                  <span className="bg-purple-500/20 text-purple-400 text-sm font-bold px-2 py-1 rounded">3</span>
-                  <div>
-                    <div className="text-white font-medium">Fund Your Wallet</div>
-                    <p className="text-gray-500 text-sm">Buy SOL on an exchange and send to your Phantom address, or use a faucet for devnet testing</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-start gap-3">
-                  <span className="bg-purple-500/20 text-purple-400 text-sm font-bold px-2 py-1 rounded">4</span>
-                  <div>
-                    <div className="text-white font-medium">Connect to ClawdVault</div>
-                    <p className="text-gray-500 text-sm">Click &quot;Connect Wallet&quot; and approve the connection in Phantom</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-[#0d1117] border border-gray-700 rounded-lg p-4 mt-4">
-                <div className="text-gray-500 text-xs uppercase tracking-wider mb-2">For Devnet Testing</div>
-                <p className="text-gray-400 text-sm">
-                  In Phantom: Settings → Developer Settings → Change Network → <span className="text-purple-400">Devnet</span>
-                  <br/>
-                  Get free devnet SOL at <a href="https://faucet.solana.com" target="_blank" rel="noopener noreferrer" className="text-orange-400 hover:text-orange-300">faucet.solana.com</a>
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* For AI Agents */}
-          <div className="mt-12">
-            <h2 className="text-2xl font-bold text-white mb-4">For AI Agents 🤖</h2>
-            <p className="text-gray-400 mb-4">
-              Check out our <Link href="/SKILL.md" className="text-orange-400 hover:text-orange-300">SKILL.md</Link> file 
-              for a concise reference designed for AI agents and LLMs.
+      <section className="py-8 px-6 flex-1">
+        <div className="max-w-6xl mx-auto">
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold text-white mb-2">API Documentation</h1>
+            <p className="text-gray-400">
+              Build integrations with ClawdVault. Perfect for AI agents, bots, and developers.
             </p>
           </div>
 
-          <div className="mt-8 pt-8 border-t border-gray-800">
-            <Link href="/" className="text-orange-400 hover:text-orange-300 transition">
-              ← Back to Home
-            </Link>
+          {/* Swagger UI with dark theme overrides */}
+          <div className="swagger-dark rounded-xl overflow-hidden border border-gray-800">
+            <SwaggerUI 
+              url="/openapi.yaml"
+              docExpansion="list"
+              defaultModelsExpandDepth={-1}
+              displayRequestDuration={true}
+            />
           </div>
         </div>
       </section>
 
       <Footer />
+
+      <style jsx global>{`
+        /* Dark theme overrides for Swagger UI */
+        .swagger-dark .swagger-ui {
+          background: #1a1a2e;
+        }
+        .swagger-dark .swagger-ui .topbar {
+          display: none;
+        }
+        .swagger-dark .swagger-ui .info {
+          margin: 20px 0;
+        }
+        .swagger-dark .swagger-ui .info .title,
+        .swagger-dark .swagger-ui .info .title small {
+          color: #fff !important;
+        }
+        .swagger-dark .swagger-ui .info .description p,
+        .swagger-dark .swagger-ui .info .description {
+          color: #9ca3af !important;
+        }
+        .swagger-dark .swagger-ui .info .description code {
+          background: #374151;
+          color: #f97316;
+        }
+        .swagger-dark .swagger-ui .scheme-container {
+          background: #111827;
+          box-shadow: none;
+          padding: 15px;
+        }
+        .swagger-dark .swagger-ui .opblock-tag {
+          color: #fff !important;
+          border-bottom: 1px solid #374151;
+        }
+        .swagger-dark .swagger-ui .opblock-tag:hover {
+          background: rgba(55, 65, 81, 0.5);
+        }
+        .swagger-dark .swagger-ui .opblock {
+          background: #111827;
+          border: 1px solid #374151;
+          border-radius: 8px;
+          margin-bottom: 10px;
+        }
+        .swagger-dark .swagger-ui .opblock .opblock-summary {
+          border-bottom: 1px solid #374151;
+        }
+        .swagger-dark .swagger-ui .opblock .opblock-summary-method {
+          border-radius: 4px;
+          font-weight: 600;
+        }
+        .swagger-dark .swagger-ui .opblock .opblock-summary-path,
+        .swagger-dark .swagger-ui .opblock .opblock-summary-path__deprecated {
+          color: #fff !important;
+        }
+        .swagger-dark .swagger-ui .opblock .opblock-summary-description {
+          color: #9ca3af !important;
+        }
+        .swagger-dark .swagger-ui .opblock.opblock-get {
+          background: rgba(59, 130, 246, 0.1);
+          border-color: rgba(59, 130, 246, 0.3);
+        }
+        .swagger-dark .swagger-ui .opblock.opblock-get .opblock-summary {
+          border-color: rgba(59, 130, 246, 0.3);
+        }
+        .swagger-dark .swagger-ui .opblock.opblock-post {
+          background: rgba(34, 197, 94, 0.1);
+          border-color: rgba(34, 197, 94, 0.3);
+        }
+        .swagger-dark .swagger-ui .opblock.opblock-post .opblock-summary {
+          border-color: rgba(34, 197, 94, 0.3);
+        }
+        .swagger-dark .swagger-ui .opblock.opblock-delete {
+          background: rgba(239, 68, 68, 0.1);
+          border-color: rgba(239, 68, 68, 0.3);
+        }
+        .swagger-dark .swagger-ui .opblock.opblock-delete .opblock-summary {
+          border-color: rgba(239, 68, 68, 0.3);
+        }
+        .swagger-dark .swagger-ui .opblock-body {
+          background: #0d1117;
+        }
+        .swagger-dark .swagger-ui .opblock-body pre {
+          background: #161b22 !important;
+          color: #e6edf3 !important;
+        }
+        .swagger-dark .swagger-ui .opblock-section-header {
+          background: #1f2937;
+          box-shadow: none;
+        }
+        .swagger-dark .swagger-ui .opblock-section-header h4 {
+          color: #fff !important;
+        }
+        .swagger-dark .swagger-ui .opblock-description-wrapper p,
+        .swagger-dark .swagger-ui .opblock-external-docs-wrapper p {
+          color: #9ca3af !important;
+        }
+        .swagger-dark .swagger-ui table thead tr th,
+        .swagger-dark .swagger-ui table thead tr td {
+          color: #fff !important;
+          border-bottom: 1px solid #374151;
+        }
+        .swagger-dark .swagger-ui table tbody tr td {
+          color: #d1d5db !important;
+          border-bottom: 1px solid #1f2937;
+        }
+        .swagger-dark .swagger-ui .parameter__name,
+        .swagger-dark .swagger-ui .parameter__type {
+          color: #60a5fa !important;
+        }
+        .swagger-dark .swagger-ui .parameter__name.required::after {
+          color: #f87171 !important;
+        }
+        .swagger-dark .swagger-ui .model-title {
+          color: #fff !important;
+        }
+        .swagger-dark .swagger-ui .model {
+          color: #d1d5db !important;
+        }
+        .swagger-dark .swagger-ui .prop-type {
+          color: #34d399 !important;
+        }
+        .swagger-dark .swagger-ui .prop-format {
+          color: #9ca3af !important;
+        }
+        .swagger-dark .swagger-ui select {
+          background: #1f2937;
+          color: #fff;
+          border: 1px solid #374151;
+        }
+        .swagger-dark .swagger-ui input[type=text],
+        .swagger-dark .swagger-ui textarea {
+          background: #1f2937;
+          color: #fff;
+          border: 1px solid #374151;
+        }
+        .swagger-dark .swagger-ui .btn {
+          border-radius: 6px;
+        }
+        .swagger-dark .swagger-ui .btn.execute {
+          background: #f97316;
+          border-color: #f97316;
+        }
+        .swagger-dark .swagger-ui .btn.execute:hover {
+          background: #ea580c;
+        }
+        .swagger-dark .swagger-ui .responses-inner {
+          background: #0d1117;
+        }
+        .swagger-dark .swagger-ui .responses-inner h4,
+        .swagger-dark .swagger-ui .responses-inner h5 {
+          color: #fff !important;
+        }
+        .swagger-dark .swagger-ui .response-col_status {
+          color: #fff !important;
+        }
+        .swagger-dark .swagger-ui .response-col_description {
+          color: #9ca3af !important;
+        }
+        .swagger-dark .swagger-ui .response .renderedMarkdown p {
+          color: #9ca3af !important;
+        }
+        .swagger-dark .swagger-ui .model-box {
+          background: #111827;
+        }
+        .swagger-dark .swagger-ui section.models {
+          border: 1px solid #374151;
+          border-radius: 8px;
+        }
+        .swagger-dark .swagger-ui section.models h4 {
+          color: #fff !important;
+        }
+        .swagger-dark .swagger-ui section.models .model-container {
+          background: #111827;
+          border-radius: 0;
+        }
+        .swagger-dark .swagger-ui .model-toggle::after {
+          background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") center no-repeat;
+        }
+        .swagger-dark .swagger-ui .expand-operation svg,
+        .swagger-dark .swagger-ui .expand-methods svg {
+          fill: #9ca3af;
+        }
+        .swagger-dark .swagger-ui .arrow {
+          fill: #9ca3af;
+        }
+        .swagger-dark .swagger-ui .loading-container .loading::after {
+          border-color: #f97316 transparent;
+        }
+        /* Tab styling */
+        .swagger-dark .swagger-ui .tab li {
+          color: #9ca3af;
+        }
+        .swagger-dark .swagger-ui .tab li.active {
+          color: #fff;
+        }
+        .swagger-dark .swagger-ui .tab li button.tablinks {
+          color: inherit;
+        }
+        /* Copy button */
+        .swagger-dark .swagger-ui .copy-to-clipboard {
+          background: #374151;
+        }
+        .swagger-dark .swagger-ui .copy-to-clipboard button {
+          background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2'%3E%3Crect x='9' y='9' width='13' height='13' rx='2' ry='2'/%3E%3Cpath d='M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1'/%3E%3C/svg%3E") center no-repeat;
+        }
+        /* Download buttons */
+        .swagger-dark .swagger-ui .download-contents {
+          background: #374151;
+          color: #fff;
+        }
+      `}</style>
     </main>
   );
 }

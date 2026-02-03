@@ -1,0 +1,1228 @@
+openapi: 3.1.0
+info:
+  title: ClawdVault API
+  description: |
+    API for ClawdVault - a pump.fun-style token launchpad on Solana.
+    
+    ## Non-Custodial Flow
+    All transactions use a **prepare → sign → execute** flow. Your private key never leaves your device.
+    
+    ## Bonding Curve
+    - Initial: 30 SOL / 1.073B tokens
+    - Fee: 1% (0.5% protocol + 0.5% creator)
+    - Graduation: 120 SOL raised → auto-migrates to Raydium
+    - Post-graduation: ~0.25% Raydium fee, trades via Jupiter
+  version: 1.0.0
+  contact:
+    name: ClawdVault
+    url: https://clawdvault.com
+
+servers:
+  - url: https://clawdvault.com/api
+    description: Production (Mainnet)
+
+tags:
+  - name: Tokens
+    description: Token creation and listing
+  - name: Trading
+    description: Buy/sell on bonding curve
+  - name: Price Data
+    description: Candles, quotes, and stats
+  - name: Graduation
+    description: Raydium migration and Jupiter trading
+  - name: Chat
+    description: Token chat rooms
+  - name: Users
+    description: Profiles and authentication
+
+paths:
+  /token/prepare-create:
+    post:
+      tags: [Tokens]
+      summary: Prepare token creation
+      description: |
+        Step 1: Prepare a token creation transaction. Returns a partially-signed 
+        transaction (mint keypair already signed). Sign with your wallet, then call execute-create.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [creator, name, symbol]
+              properties:
+                creator:
+                  type: string
+                  description: Creator wallet address
+                  example: "7b9191rMLP8yZaKYudWiFtFZwtaEYX5Tyy2hZeEKDyWq"
+                name:
+                  type: string
+                  maxLength: 32
+                  example: "Crab Token"
+                symbol:
+                  type: string
+                  maxLength: 10
+                  example: "CRAB"
+                initialBuy:
+                  type: number
+                  description: Initial buy amount in SOL (optional)
+                  example: 0.5
+      responses:
+        '200':
+          description: Transaction prepared
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  transaction:
+                    type: string
+                    description: Base64 partially-signed transaction
+                  mint:
+                    type: string
+                    description: New token mint address
+                  programId:
+                    type: string
+                    example: "GUyF2TVe32Cid4iGVt2F6wPYDhLSVmTUZBj2974outYM"
+                  network:
+                    type: string
+                    example: "mainnet-beta"
+                  initialBuy:
+                    type: object
+                    properties:
+                      sol:
+                        type: number
+                      estimatedTokens:
+                        type: number
+
+  /token/execute-create:
+    post:
+      tags: [Tokens]
+      summary: Execute token creation
+      description: Step 2: Submit the signed transaction and create database record.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [signedTransaction, mint, creator, name, symbol]
+              properties:
+                signedTransaction:
+                  type: string
+                  description: Base64 signed transaction
+                mint:
+                  type: string
+                creator:
+                  type: string
+                name:
+                  type: string
+                symbol:
+                  type: string
+                description:
+                  type: string
+                image:
+                  type: string
+                  format: uri
+                twitter:
+                  type: string
+                telegram:
+                  type: string
+                website:
+                  type: string
+                initialBuy:
+                  type: object
+                  properties:
+                    solAmount:
+                      type: number
+                    estimatedTokens:
+                      type: number
+      responses:
+        '200':
+          description: Token created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  signature:
+                    type: string
+                  mint:
+                    type: string
+                  token:
+                    $ref: '#/components/schemas/Token'
+                  initialBuyTrade:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      solAmount:
+                        type: number
+                      tokenAmount:
+                        type: number
+                  explorer:
+                    type: string
+                    format: uri
+
+  /tokens:
+    get:
+      tags: [Tokens]
+      summary: List all tokens
+      parameters:
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [created_at, market_cap, volume, price]
+            default: created_at
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: graduated
+          in: query
+          schema:
+            type: boolean
+          description: Filter by graduation status
+      responses:
+        '200':
+          description: Token list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tokens:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Token'
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  per_page:
+                    type: integer
+
+  /tokens/{mint}:
+    get:
+      tags: [Tokens]
+      summary: Get token details
+      parameters:
+        - name: mint
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Token details with recent trades
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    $ref: '#/components/schemas/Token'
+                  trades:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Trade'
+
+  /metadata/{mint}:
+    get:
+      tags: [Tokens]
+      summary: Get Metaplex metadata
+      description: Returns Metaplex-compatible JSON for on-chain token URI.
+      parameters:
+        - name: mint
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Metaplex metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  symbol:
+                    type: string
+                  description:
+                    type: string
+                  image:
+                    type: string
+
+  /trade:
+    get:
+      tags: [Price Data]
+      summary: Get price quote
+      description: Preview a trade without executing. Returns expected output and price impact.
+      parameters:
+        - name: mint
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [buy, sell]
+        - name: amount
+          in: query
+          required: true
+          schema:
+            type: number
+          description: SOL for buy, tokens for sell
+      responses:
+        '200':
+          description: Quote
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  input:
+                    type: number
+                  output:
+                    type: number
+                  price_impact:
+                    type: number
+                  fee:
+                    type: number
+                  current_price:
+                    type: number
+
+  /trade/prepare:
+    post:
+      tags: [Trading]
+      summary: Prepare trade transaction
+      description: Build an unsigned transaction for wallet signing.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mint, type, amount, wallet]
+              properties:
+                mint:
+                  type: string
+                type:
+                  type: string
+                  enum: [buy, sell]
+                amount:
+                  type: number
+                  description: SOL for buy, tokens for sell
+                wallet:
+                  type: string
+                  description: Your wallet address
+                slippage:
+                  type: number
+                  default: 0.01
+                  description: Slippage tolerance (0.01 = 1%)
+      responses:
+        '200':
+          description: Transaction prepared
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  transaction:
+                    type: string
+                    description: Base64 unsigned transaction
+                  type:
+                    type: string
+                  input:
+                    type: object
+                    properties:
+                      sol:
+                        type: number
+                      fee:
+                        type: number
+                      tokens:
+                        type: number
+                  output:
+                    type: object
+                    properties:
+                      tokens:
+                        type: number
+                      minTokens:
+                        type: number
+                      sol:
+                        type: number
+                      minSol:
+                        type: number
+                  priceImpact:
+                    type: number
+                  currentPrice:
+                    type: number
+                  onChain:
+                    type: boolean
+        '400':
+          description: Token graduated - use Jupiter endpoint
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  graduated:
+                    type: boolean
+                  error:
+                    type: string
+                  redirectTo:
+                    type: string
+
+  /trade/execute:
+    post:
+      tags: [Trading]
+      summary: Execute signed trade
+      description: |
+        Submit a signed transaction. Trade amounts are verified from on-chain 
+        TradeEvent logs (anti-spoof protection).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [signedTransaction, mint, type, wallet]
+              properties:
+                signedTransaction:
+                  type: string
+                  description: Base64 signed transaction
+                mint:
+                  type: string
+                type:
+                  type: string
+                  enum: [buy, sell]
+                wallet:
+                  type: string
+      responses:
+        '200':
+          description: Trade executed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  signature:
+                    type: string
+                  explorer:
+                    type: string
+                    format: uri
+                  slot:
+                    type: integer
+                  blockTime:
+                    type: integer
+                  trade:
+                    type: object
+                    description: Verified on-chain trade data
+                    properties:
+                      id:
+                        type: string
+                      mint:
+                        type: string
+                      trader:
+                        type: string
+                      type:
+                        type: string
+                      solAmount:
+                        type: number
+                      tokenAmount:
+                        type: number
+                      protocolFee:
+                        type: number
+                      creatorFee:
+                        type: number
+
+  /trades:
+    get:
+      tags: [Price Data]
+      summary: Get trade history
+      parameters:
+        - name: mint
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: before
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Cursor for pagination
+      responses:
+        '200':
+          description: Trade history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trades:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Trade'
+
+  /candles:
+    get:
+      tags: [Price Data]
+      summary: Get OHLCV candles
+      description: |
+        Returns candlestick data for charting. This is the recommended source 
+        of truth for price display. Use the last candle's `close` for current price.
+      parameters:
+        - name: mint
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: interval
+          in: query
+          schema:
+            type: string
+            enum: [1m, 5m, 15m, 1h, 1d]
+            default: 5m
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            maximum: 1000
+      responses:
+        '200':
+          description: Candle data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mint:
+                    type: string
+                  interval:
+                    type: string
+                  candles:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        time:
+                          type: integer
+                          description: Unix timestamp (seconds)
+                        open:
+                          type: number
+                        high:
+                          type: number
+                        low:
+                          type: number
+                        close:
+                          type: number
+                        volume:
+                          type: number
+                          description: Volume in SOL
+
+  /stats:
+    get:
+      tags: [Price Data]
+      summary: Get on-chain stats
+      description: Returns bonding curve state directly from Solana.
+      parameters:
+        - name: mint
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: On-chain stats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  mint:
+                    type: string
+                  onChain:
+                    type: object
+                    properties:
+                      totalSupply:
+                        type: number
+                      bondingCurveBalance:
+                        type: number
+                      circulatingSupply:
+                        type: number
+                      bondingCurveSol:
+                        type: number
+                      virtualSolReserves:
+                        type: number
+                      virtualTokenReserves:
+                        type: number
+                      price:
+                        type: number
+                      marketCap:
+                        type: number
+                      graduated:
+                        type: boolean
+
+  /holders:
+    get:
+      tags: [Price Data]
+      summary: Get top holders
+      parameters:
+        - name: mint
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: creator
+          in: query
+          schema:
+            type: string
+          description: Creator address for labeling
+      responses:
+        '200':
+          description: Top holders
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  holders:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        address:
+                          type: string
+                        balance:
+                          type: number
+                        percentage:
+                          type: number
+                        label:
+                          type: string
+
+  /balance:
+    get:
+      tags: [Price Data]
+      summary: Get wallet token balance
+      parameters:
+        - name: wallet
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: mint
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Balance
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  balance:
+                    type: number
+                  wallet:
+                    type: string
+                  mint:
+                    type: string
+
+  /sol-price:
+    get:
+      tags: [Price Data]
+      summary: Get SOL/USD price
+      description: Returns current SOL price (cached 60s).
+      responses:
+        '200':
+          description: SOL price
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  price:
+                    type: number
+                  valid:
+                    type: boolean
+                  cached:
+                    type: boolean
+                  source:
+                    type: string
+                  age:
+                    type: integer
+                    description: Cache age in seconds
+
+  /graduate:
+    get:
+      tags: [Graduation]
+      summary: Check graduation status
+      description: Check if a token has graduated to Raydium (120 SOL threshold).
+      parameters:
+        - name: mint
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Graduation status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      mint:
+                        type: string
+                      graduated:
+                        type: boolean
+                      migratedToRaydium:
+                        type: boolean
+                      realSolReserves:
+                        type: string
+                      realTokenReserves:
+                        type: string
+                      canMigrate:
+                        type: boolean
+
+  /trade/jupiter:
+    get:
+      tags: [Graduation]
+      summary: Check Jupiter availability
+      description: Check if a token should trade via Jupiter (graduated) or bonding curve.
+      parameters:
+        - name: mint
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Jupiter status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  mint:
+                    type: string
+                  graduated:
+                    type: boolean
+                  tradeEndpoint:
+                    type: string
+    post:
+      tags: [Graduation]
+      summary: Get Jupiter swap quote
+      description: |
+        Get a Jupiter swap quote and transaction for graduated tokens. 
+        Returns a VersionedTransaction that must be signed by your wallet.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mint, action, amount, userPublicKey]
+              properties:
+                mint:
+                  type: string
+                action:
+                  type: string
+                  enum: [buy, sell]
+                amount:
+                  type: string
+                  description: Lamports (buy) or token units (sell)
+                userPublicKey:
+                  type: string
+                slippageBps:
+                  type: integer
+                  default: 50
+                  description: Slippage in basis points (50 = 0.5%)
+      responses:
+        '200':
+          description: Jupiter quote
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  graduated:
+                    type: boolean
+                  quote:
+                    type: object
+                    properties:
+                      inputMint:
+                        type: string
+                      outputMint:
+                        type: string
+                      inAmount:
+                        type: string
+                      outAmount:
+                        type: string
+                      priceImpactPct:
+                        type: string
+                      slippageBps:
+                        type: integer
+                  transaction:
+                    type: string
+                    description: Base64 VersionedTransaction
+                  lastValidBlockHeight:
+                    type: integer
+
+  /trade/jupiter/execute:
+    post:
+      tags: [Graduation]
+      summary: Execute Jupiter swap
+      description: Submit a signed Jupiter VersionedTransaction.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mint, signedTransaction, type, wallet]
+              properties:
+                mint:
+                  type: string
+                signedTransaction:
+                  type: string
+                  description: Base64 signed VersionedTransaction
+                type:
+                  type: string
+                  enum: [buy, sell]
+                wallet:
+                  type: string
+                solAmount:
+                  type: number
+                tokenAmount:
+                  type: number
+      responses:
+        '200':
+          description: Trade executed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  signature:
+                    type: string
+                  trade:
+                    type: object
+                    properties:
+                      mint:
+                        type: string
+                      type:
+                        type: string
+                      solAmount:
+                        type: number
+                      tokenAmount:
+                        type: number
+                  message:
+                    type: string
+
+  /chat:
+    get:
+      tags: [Chat]
+      summary: Get chat messages
+      parameters:
+        - name: mint
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: before
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Chat messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ChatMessage'
+    post:
+      tags: [Chat]
+      summary: Send chat message
+      description: Requires wallet signature or session token.
+      security:
+        - BearerAuth: []
+        - WalletSignature: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mint, message]
+              properties:
+                mint:
+                  type: string
+                message:
+                  type: string
+                  maxLength: 500
+                replyTo:
+                  type: string
+                  description: Message ID to reply to
+      responses:
+        '200':
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    $ref: '#/components/schemas/ChatMessage'
+
+  /reactions:
+    post:
+      tags: [Chat]
+      summary: Add reaction
+      security:
+        - WalletSignature: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [messageId, emoji]
+              properties:
+                messageId:
+                  type: string
+                emoji:
+                  type: string
+      responses:
+        '200':
+          description: Reaction added
+    delete:
+      tags: [Chat]
+      summary: Remove reaction
+      security:
+        - WalletSignature: []
+      parameters:
+        - name: messageId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: emoji
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Reaction removed
+
+  /profile:
+    get:
+      tags: [Users]
+      summary: Get user profile
+      parameters:
+        - name: wallet
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+    post:
+      tags: [Users]
+      summary: Update profile
+      security:
+        - WalletSignature: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  minLength: 2
+                  maxLength: 20
+                  pattern: '^[a-zA-Z0-9_-]+$'
+                avatar:
+                  type: string
+                  format: uri
+      responses:
+        '200':
+          description: Profile updated
+
+  /auth/session:
+    post:
+      tags: [Users]
+      summary: Create session token
+      description: Exchange wallet signature for JWT session token.
+      security:
+        - WalletSignature: []
+      responses:
+        '200':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  token:
+                    type: string
+                  expiresIn:
+                    type: integer
+                  wallet:
+                    type: string
+    get:
+      tags: [Users]
+      summary: Verify session token
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Session valid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+                  wallet:
+                    type: string
+
+  /upload:
+    post:
+      tags: [Tokens]
+      summary: Upload image
+      description: Upload an image for token creation.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Image file (PNG, JPEG, GIF, WebP, max 5MB)
+      responses:
+        '200':
+          description: Image uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  url:
+                    type: string
+                    format: uri
+                  filename:
+                    type: string
+
+  /network:
+    get:
+      tags: [Price Data]
+      summary: Get network status
+      description: Returns network info and program status.
+      responses:
+        '200':
+          description: Network status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  network:
+                    type: string
+                  programId:
+                    type: string
+                  rpcUrl:
+                    type: string
+                  configInitialized:
+                    type: boolean
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: JWT session token from /auth/session
+    WalletSignature:
+      type: apiKey
+      in: header
+      name: X-Wallet
+      description: |
+        Wallet address in X-Wallet header + signature in X-Signature header.
+        Sign the request body (or action object) with your wallet.
+
+  schemas:
+    Token:
+      type: object
+      properties:
+        mint:
+          type: string
+        name:
+          type: string
+        symbol:
+          type: string
+        description:
+          type: string
+        image:
+          type: string
+        creator:
+          type: string
+        creator_name:
+          type: string
+        price_sol:
+          type: number
+        market_cap_sol:
+          type: number
+        volume_24h:
+          type: number
+        virtual_sol_reserves:
+          type: number
+        virtual_token_reserves:
+          type: number
+        real_sol_reserves:
+          type: number
+        real_token_reserves:
+          type: number
+        graduated:
+          type: boolean
+        migrated_to_raydium:
+          type: boolean
+        twitter:
+          type: string
+        telegram:
+          type: string
+        website:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    Trade:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [buy, sell]
+        sol_amount:
+          type: number
+        token_amount:
+          type: number
+        price:
+          type: number
+        trader:
+          type: string
+        signature:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    ChatMessage:
+      type: object
+      properties:
+        id:
+          type: string
+        wallet:
+          type: string
+        username:
+          type: string
+        message:
+          type: string
+        reply_to:
+          type: string
+        reactions:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        created_at:
+          type: string
+          format: date-time
+
+    UserProfile:
+      type: object
+      properties:
+        wallet:
+          type: string
+        username:
+          type: string
+        avatar:
+          type: string
+        created_at:
+          type: string
+          format: date-time

@@ -152,7 +152,25 @@ export async function POST(request: Request) {
       
     } else {
       // Selling: spending tokens, receiving SOL
-      const tokenAmountUnits = BigInt(Math.floor(body.amount * 1e6)); // Convert to smallest units
+      let tokenAmountUnits = BigInt(Math.floor(body.amount * 1e6)); // Convert to smallest units
+      
+      // Check if requested sell would exceed available liquidity
+      // If so, calculate max tokens we can actually sell
+      const k = curveState.virtualSolReserves * curveState.virtualTokenReserves;
+      const targetVirtualSol = curveState.virtualSolReserves - curveState.realSolReserves;
+      
+      let cappedByLiquidity = false;
+      if (targetVirtualSol > BigInt(0)) {
+        const maxVirtualTokens = k / targetVirtualSol;
+        const maxSellableTokens = maxVirtualTokens - curveState.virtualTokenReserves;
+        // Apply 2% buffer for rounding differences between JS and Rust
+        const maxSellableWithBuffer = (maxSellableTokens * BigInt(98)) / BigInt(100);
+        
+        if (tokenAmountUnits > maxSellableWithBuffer) {
+          tokenAmountUnits = maxSellableWithBuffer;
+          cappedByLiquidity = true;
+        }
+      }
       
       const { solOut, fee, priceImpact } = calculateSellSolOut(
         tokenAmountUnits,
@@ -160,13 +178,8 @@ export async function POST(request: Request) {
         curveState.virtualTokenReserves
       );
       
-      // Check if sell exceeds available liquidity (contract will cap it)
-      const cappedByLiquidity = solOut > curveState.realSolReserves;
-      const effectiveSolOut = cappedByLiquidity ? curveState.realSolReserves : solOut;
-      
-      // Apply slippage - use higher tolerance (15%) for partial fills
-      const effectiveSlippage = cappedByLiquidity ? 0.15 : slippage;
-      const minSolOut = (effectiveSolOut * BigInt(Math.floor((1 - effectiveSlippage) * 10000))) / BigInt(10000);
+      // Apply normal slippage (now safe since we capped tokens)
+      const minSolOut = (solOut * BigInt(Math.floor((1 - slippage) * 10000))) / BigInt(10000);
       
       // Build transaction using Anchor client
       const transaction = await client.buildSellTransaction(
@@ -185,18 +198,21 @@ export async function POST(request: Request) {
       });
       
       const feeNumber = Number(fee) / 1e9;
-      const effectiveSolOutNumber = Number(effectiveSolOut) / 1e9;
+      const solOutNumber = Number(solOut) / 1e9;
       const minSolOutNumber = Number(minSolOut) / 1e9;
+      
+      const actualTokenAmount = Number(tokenAmountUnits) / 1e6;
       
       return NextResponse.json({
         success: true,
         transaction: serialized.toString('base64'),
         type: 'sell',
         input: {
-          tokens: body.amount,
+          tokens: actualTokenAmount, // May be less than requested if capped
+          requestedTokens: body.amount,
         },
         output: {
-          sol: effectiveSolOutNumber,
+          sol: solOutNumber,
           minSol: minSolOutNumber,
           fee: feeNumber,
         },

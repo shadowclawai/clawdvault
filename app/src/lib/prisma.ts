@@ -33,5 +33,5 @@ export function calculateFees(solAmount: number) {
 
 // Constants
 export const INITIAL_VIRTUAL_SOL = 30;
-export const INITIAL_VIRTUAL_TOKENS = 1073000000;
+export const INITIAL_VIRTUAL_TOKENS = 1_000_000_000;
 export const GRADUATION_THRESHOLD_SOL = 120; // ~$69K market cap at $100/SOL

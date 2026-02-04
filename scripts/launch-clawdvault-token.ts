@@ -7,7 +7,7 @@ async function main() {
   // Load my wallet
   const walletData = JSON.parse(fs.readFileSync('/Users/ashand/.config/solana/claw-wallet.json', 'utf8'));
   const wallet = Keypair.fromSecretKey(new Uint8Array(walletData));
-  console.log('🦀 Creator wallet:', wallet.publicKey.toBase58());
+  console.log('🦞 Creator wallet:', wallet.publicKey.toBase58());
 
   // Token details
   const tokenDetails = {
@@ -92,7 +92,7 @@ async function main() {
     process.exit(1);
   }
 
-  console.log('\n🎉 TOKEN LAUNCHED SUCCESSFULLY! 🦀');
+  console.log('\n🎉 TOKEN LAUNCHED SUCCESSFULLY! 🦞');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('Mint:', prepareData.mint);
   console.log('Signature:', executeData.signature);

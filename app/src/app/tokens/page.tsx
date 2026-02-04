@@ -260,7 +260,7 @@ export default function TokensPage() {
                 </>
               ) : (
                 <>
-                  <div className="text-6xl mb-4">🦀</div>
+                  <div className="text-6xl mb-4">🦞</div>
                   <h2 className="text-xl font-bold text-white mb-2">No tokens yet</h2>
                   <p className="text-gray-400 mb-6">Be the first to launch!</p>
                   <Link

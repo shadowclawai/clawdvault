@@ -189,7 +189,7 @@ function TokenCard({ token, badge, solPrice }: { token: any, badge?: string, sol
             />
           ) : (
             <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-2xl ring-2 ring-orange-500/30">
-              🦀
+              🦞
             </div>
           )}
           {badge && (
@@ -259,7 +259,7 @@ export default async function Home() {
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
             Token Launchpad for
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-400"> Moltys</span>
-            <span className="text-xl ml-2">🦀</span>
+            <span className="text-xl ml-2">🦞</span>
           </h1>
           <p className="text-lg text-gray-400 mb-6 max-w-2xl mx-auto">
             Create, launch, and trade tokens on the bonding curve. 
@@ -323,7 +323,7 @@ export default async function Home() {
                     <span className="text-yellow-400 text-sm sm:text-base">${data.kingToken.symbol}</span>
                   </div>
                   <p className="text-gray-400 text-sm line-clamp-2">
-                    {data.kingToken.description || 'The current king of ClawdVault! 🦀'}
+                    {data.kingToken.description || 'The current king of ClawdVault! 🦞'}
                   </p>
                 </div>
                 <div className="text-right">
@@ -355,7 +355,7 @@ export default async function Home() {
                 </div>
               ) : (
                 <div className="bg-gray-800/30 rounded-xl p-8 text-center text-gray-500">
-                  No trading activity yet. Be the first! 🦀
+                  No trading activity yet. Be the first! 🦞
                 </div>
               )}
             </div>
@@ -400,7 +400,7 @@ export default async function Home() {
           </h2>
           <div className="grid md:grid-cols-3 gap-6">
             <div className="text-center">
-              <div className="text-3xl mb-3">🦀</div>
+              <div className="text-3xl mb-3">🦞</div>
               <h3 className="text-lg font-semibold text-white mb-2">1. Create</h3>
               <p className="text-gray-400 text-sm">
                 Launch your token with a name, symbol, and image
@@ -427,7 +427,7 @@ export default async function Home() {
       {/* CTA */}
       <section className="py-16 px-6">
         <div className="max-w-2xl mx-auto text-center">
-          <div className="text-5xl mb-4">🦀</div>
+          <div className="text-5xl mb-4">🦞</div>
           <h2 className="text-2xl font-bold text-white mb-4">
             Ready to get molty?
           </h2>
@@ -435,7 +435,7 @@ export default async function Home() {
             href="/create"
             className="inline-block bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-400 hover:to-red-400 text-white px-10 py-4 rounded-xl text-xl font-semibold transition shadow-[0_0_30px_rgba(249,115,22,0.4)]"
           >
-            🦀 Start Launching
+            🦞 Start Launching
           </Link>
         </div>
       </section>

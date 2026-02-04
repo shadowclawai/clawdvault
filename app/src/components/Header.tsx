@@ -11,7 +11,7 @@ export default function Header() {
     <header className="border-b border-gray-800 px-4 sm:px-6 py-4">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-2 shrink-0">
-          <span className="text-2xl">🦀</span>
+          <span className="text-2xl">🦞</span>
           <span className="hidden min-[420px]:inline text-lg sm:text-xl font-bold text-white">ClawdVault</span>
         </Link>
         

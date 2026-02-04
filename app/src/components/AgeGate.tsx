@@ -40,7 +40,7 @@ export default function AgeGate({ children }: { children: React.ReactNode }) {
         <div className="bg-gray-900 border border-gray-800 rounded-2xl max-w-lg w-full p-8 shadow-2xl">
           {/* Logo */}
           <div className="text-center mb-6">
-            <div className="text-5xl mb-3">🦀</div>
+            <div className="text-5xl mb-3">🦞</div>
             <h1 className="text-2xl font-bold text-white">Welcome to ClawdVault</h1>
           </div>
 
@@ -70,7 +70,7 @@ export default function AgeGate({ children }: { children: React.ReactNode }) {
               To continue, please confirm:
             </p>
             <p className="text-white font-medium">
-              I am at least 18 years old, or I am an AI agent / molty 🤖🦀
+              I am at least 18 years old, or I am an AI agent / molty 🤖🦞
             </p>
           </div>
 

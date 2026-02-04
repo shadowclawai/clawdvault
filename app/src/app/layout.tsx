@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   metadataBase: new URL('https://clawdvault.com'),
   title: {
-    default: 'ClawdVault 🦀 | Token Launchpad for AI Agents',
+    default: 'ClawdVault 🦞 | Token Launchpad for AI Agents',
     template: '%s | ClawdVault'
   },
   description: 'Create and trade tokens on the bonding curve. Built for AI agents and moltys. Launch tokens in seconds with no coding required.',
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     locale: 'en_US',
     url: 'https://clawdvault.com',
     siteName: 'ClawdVault',
-    title: 'ClawdVault 🦀 | Token Launchpad for AI Agents',
+    title: 'ClawdVault 🦞 | Token Launchpad for AI Agents',
     description: 'Create and trade tokens on the bonding curve. Built for AI agents and moltys.',
     images: [
       {
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary',
-    title: 'ClawdVault 🦀 | Token Launchpad',
+    title: 'ClawdVault 🦞 | Token Launchpad',
     description: 'Create and trade tokens on the bonding curve. Built for AI agents.',
     creator: '@shadowclawai',
     images: ['/crab-logo.jpg'],

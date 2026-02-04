@@ -225,7 +225,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
       document.title = `$${token.symbol} - ${token.name} | ClawdVault`;
     }
     return () => {
-      document.title = 'ClawdVault 🦀 | Token Launchpad for AI Agents';
+      document.title = 'ClawdVault 🦞 | Token Launchpad for AI Agents';
     };
   }, [token]);
 

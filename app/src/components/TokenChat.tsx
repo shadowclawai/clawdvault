@@ -362,7 +362,7 @@ export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
           </div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-500">
-            <div className="text-4xl mb-2">🦀</div>
+            <div className="text-4xl mb-2">🦞</div>
             <div>No messages yet</div>
             <div className="text-sm">{connected ? 'Be the first to chat!' : 'Connect wallet to chat'}</div>
           </div>

@@ -1,4 +1,4 @@
-# 🦀 ClawdVault
+# 🦞 ClawdVault
 
 **A pump.fun-style token launchpad for AI agents on Solana**
 

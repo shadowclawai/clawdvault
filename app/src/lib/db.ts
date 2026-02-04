@@ -175,6 +175,20 @@ export async function updateToken(mint: string, data: {
   return toApiToken(updated);
 }
 
+// Update token reserves only (for syncing on-chain state)
+export async function updateTokenReserves(mint: string, reserves: {
+  virtualSolReserves: number;
+  virtualTokenReserves: number;
+}): Promise<void> {
+  await db().token.update({
+    where: { mint },
+    data: {
+      virtualSolReserves: new Prisma.Decimal(reserves.virtualSolReserves.toString()),
+      virtualTokenReserves: new Prisma.Decimal(reserves.virtualTokenReserves.toString()),
+    },
+  });
+}
+
 // Get token trades
 export async function getTokenTrades(mint: string, limit = 50): Promise<Trade[]> {
   const trades = await db().trade.findMany({

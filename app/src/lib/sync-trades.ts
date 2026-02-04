@@ -4,7 +4,7 @@
 
 import { Connection, PublicKey, clusterApiUrl } from '@solana/web3.js';
 import { PROGRAM_ID } from '@/lib/anchor/client';
-import { getTradeBySignature, recordTrade } from '@/lib/db';
+import { getTradeBySignature, recordTrade, updateTokenReserves } from '@/lib/db';
 
 // TradeEvent discriminator (first 8 bytes of sha256("event:TradeEvent"))
 const TRADE_EVENT_DISCRIMINATOR = Buffer.from([189, 219, 127, 211, 78, 230, 97, 238]);
@@ -129,14 +129,7 @@ export async function syncTrades(options: {
     
     for (const sigInfo of signatures) {
       try {
-        // Check if we already have this trade
-        const exists = await getTradeBySignature(sigInfo.signature);
-        if (exists) {
-          skipped++;
-          continue;
-        }
-        
-        // Fetch full transaction
+        // Fetch full transaction first (we need it for reserves update regardless)
         const tx = await connection.getTransaction(sigInfo.signature, {
           commitment: 'confirmed',
           maxSupportedTransactionVersion: 0,
@@ -157,7 +150,21 @@ export async function syncTrades(options: {
           continue;
         }
         
-        // Record the trade with on-chain reserves for accuracy
+        // Check if trade already exists
+        const exists = await getTradeBySignature(sigInfo.signature);
+        
+        if (exists) {
+          // Trade exists - just update reserves (TEMPORARY: remove this block later)
+          await updateTokenReserves(tradeEvent.mint, {
+            virtualSolReserves: Number(tradeEvent.virtualSolReserves) / 1e9,
+            virtualTokenReserves: Number(tradeEvent.virtualTokenReserves) / 1e6,
+          });
+          skipped++;
+          console.log(`🔄 Updated reserves for existing trade: ${sigInfo.signature.slice(0, 8)}...`);
+          continue;
+        }
+        
+        // Record new trade with on-chain reserves for accuracy
         await recordTrade({
           mint: tradeEvent.mint,
           type: tradeEvent.isBuy ? 'buy' : 'sell',

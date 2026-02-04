@@ -574,7 +574,25 @@ export async function recordTrade(params: RecordTradeParams) {
   
   console.log('[recordTrade] Trade type:', params.type, 'solAmount:', params.solAmount, 'tokenAmount:', params.tokenAmount);
   
-  if (params.type === 'buy') {
+  // If on-chain reserves provided, use them directly (most accurate)
+  if (params.onChainReserves) {
+    console.log('[recordTrade] Using on-chain reserves:', params.onChainReserves);
+    newVirtualSol = params.onChainReserves.virtualSolReserves;
+    newVirtualTokens = params.onChainReserves.virtualTokenReserves;
+    
+    // Calculate real reserves from the trade
+    if (params.type === 'buy') {
+      const solAfterFee = params.solAmount - totalFee;
+      newRealSol = realSol + solAfterFee;
+      newRealTokens = realTokens - params.tokenAmount;
+    } else {
+      const solOut = virtualSol - newVirtualSol;
+      const solAfterFee = solOut - totalFee;
+      newRealSol = Math.max(0, realSol - solAfterFee);
+      newRealTokens = realTokens + params.tokenAmount;
+    }
+  } else if (params.type === 'buy') {
+    // Fallback: calculate from invariant (less accurate)
     // SOL goes in, tokens come out
     newVirtualSol = virtualSol + params.solAmount;
     newVirtualTokens = invariant / newVirtualSol;

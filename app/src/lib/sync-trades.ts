@@ -157,7 +157,7 @@ export async function syncTrades(options: {
           continue;
         }
         
-        // Record the trade
+        // Record the trade with on-chain reserves for accuracy
         await recordTrade({
           mint: tradeEvent.mint,
           type: tradeEvent.isBuy ? 'buy' : 'sell',
@@ -166,6 +166,10 @@ export async function syncTrades(options: {
           tokenAmount: Number(tradeEvent.tokenAmount) / 1e6,
           signature: sigInfo.signature,
           timestamp: new Date(Number(tradeEvent.timestamp) * 1000),
+          onChainReserves: {
+            virtualSolReserves: Number(tradeEvent.virtualSolReserves) / 1e9,
+            virtualTokenReserves: Number(tradeEvent.virtualTokenReserves) / 1e6,
+          },
         });
         
         synced++;

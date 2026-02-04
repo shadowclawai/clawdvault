@@ -129,6 +129,9 @@ export async function syncTrades(options: {
     
     for (const sigInfo of signatures) {
       try {
+        // Rate limit: small delay to avoid 429s
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         // Fetch full transaction first (we need it for reserves update regardless)
         const tx = await connection.getTransaction(sigInfo.signature, {
           commitment: 'confirmed',

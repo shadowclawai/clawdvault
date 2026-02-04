@@ -161,7 +161,7 @@ function formatValue(solAmount: number, solPrice: number | null): string {
   return formatSol(solAmount);
 }
 
-const TOTAL_SUPPLY = 1073000000
+const TOTAL_SUPPLY = 1_000_000_000
 
 function getMarketCap(token: any): number {
   const virtualSol = Number(token.virtualSolReserves)

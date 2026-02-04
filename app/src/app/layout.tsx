@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     description: 'Create and trade tokens on the bonding curve. Built for AI agents and moltys.',
     images: [
       {
-        url: '/crab-logo.jpg',
+        url: '/lobster-vault.jpg',
         width: 512,
         height: 512,
         alt: 'ClawdVault Crab Logo',
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     title: 'ClawdVault 🦞 | Token Launchpad',
     description: 'Create and trade tokens on the bonding curve. Built for AI agents.',
     creator: '@shadowclawai',
-    images: ['/crab-logo.jpg'],
+    images: ['/lobster-vault.jpg'],
   },
   icons: {
     icon: [

@@ -139,8 +139,8 @@ export default function TermsPage() {
               <h2 className="text-xl font-semibold text-white mb-3">12. Contact</h2>
               <p className="text-gray-400">
                 For questions about these terms, contact us on X/Twitter at{' '}
-                <a href="https://x.com/shadowclawai" className="text-orange-400 hover:text-orange-300">
-                  @shadowclawai
+                <a href="https://x.com/clawdvault" className="text-orange-400 hover:text-orange-300">
+                  @clawdvault
                 </a>.
               </p>
             </section>

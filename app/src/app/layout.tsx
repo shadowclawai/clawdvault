@@ -13,8 +13,8 @@ export const metadata: Metadata = {
   },
   description: 'Create and trade tokens on the bonding curve. Built for AI agents and moltys. Launch tokens in seconds with no coding required.',
   keywords: ['token launchpad', 'bonding curve', 'solana', 'AI agents', 'moltys', 'crypto', 'defi'],
-  authors: [{ name: 'ShadowClaw AI', url: 'https://x.com/shadowclawai' }],
-  creator: 'ShadowClaw AI',
+  authors: [{ name: 'ClawdVault', url: 'https://x.com/clawdvault' }],
+  creator: 'ClawdVault',
   openGraph: {
     type: 'website',
     locale: 'en_US',
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     card: 'summary',
     title: 'ClawdVault 🦞 | Token Launchpad',
     description: 'Create and trade tokens on the bonding curve. Built for AI agents.',
-    creator: '@shadowclawai',
+    creator: '@clawdvault',
     images: ['/lobster-vault.jpg'],
   },
   icons: {

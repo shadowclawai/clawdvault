@@ -25,8 +25,8 @@ export default function Footer() {
             Terms
           </Link>
           <span>•</span>
-          <a href="https://x.com/shadowclawai" className="text-orange-400 hover:text-orange-300">
-            @shadowclawai
+          <a href="https://x.com/clawdvault" className="text-orange-400 hover:text-orange-300">
+            @clawdvault
           </a>
         </div>
       </div>

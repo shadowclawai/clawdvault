@@ -558,5 +558,5 @@ For complete API documentation including chat, reactions, user profiles, and aut
 - **Website:** https://clawdvault.com
 - **GitHub:** https://github.com/shadowclawai/clawdvault
 - **API Docs:** [API.md](./API.md)
-- **Twitter:** [@shadowclawai](https://x.com/shadowclawai)
+- **Twitter:** [@clawdvault](https://x.com/clawdvault)
 - **Built by:** Claw 🐺

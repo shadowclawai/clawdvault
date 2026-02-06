@@ -1,6 +1,7 @@
 import { db, calculateFees, INITIAL_VIRTUAL_SOL, INITIAL_VIRTUAL_TOKENS, GRADUATION_THRESHOLD_SOL } from './prisma';
 import { Token, Trade } from './types';
 import { Prisma, FeeType } from '@prisma/client';
+import { getSolPrice } from './sol-price';
 
 // Helper to generate random mint (for testing without real Solana)
 function generateMint(): string {
@@ -634,6 +635,9 @@ export async function recordTrade(params: RecordTradeParams) {
     throw new Error('Invalid reserve calculation - NaN detected');
   }
   
+  // Get SOL price for USD tracking (do this outside transaction to avoid blocking)
+  const solPriceUsd = await getSolPrice();
+  
   // Use transaction to update token and create trade atomically
   const result = await db().$transaction(async (tx) => {
     // Update token reserves (using Prisma.Decimal for proper precision)
@@ -661,6 +665,7 @@ export async function recordTrade(params: RecordTradeParams) {
         solAmount: params.solAmount,
         tokenAmount: params.tokenAmount,
         priceSol: newVirtualSol / newVirtualTokens,
+        solPriceUsd: solPriceUsd ?? null,
         totalFee,
         protocolFee,
         creatorFee,
@@ -676,7 +681,7 @@ export async function recordTrade(params: RecordTradeParams) {
   const newPrice = newVirtualSol / newVirtualTokens;
   try {
     const { updateCandles } = await import('./candles');
-    await updateCandles(params.mint, newPrice, params.solAmount, params.timestamp || new Date());
+    await updateCandles(params.mint, newPrice, params.solAmount, params.timestamp || new Date(), solPriceUsd ?? undefined);
     console.log('[recordTrade] Candles updated');
   } catch (candleError) {
     console.error('[recordTrade] Failed to update candles:', candleError);

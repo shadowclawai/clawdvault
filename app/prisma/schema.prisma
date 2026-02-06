@@ -70,6 +70,9 @@ model Trade {
   protocolFee Decimal @default(0) @map("protocol_fee") @db.Decimal(20, 9)
   creatorFee  Decimal @default(0) @map("creator_fee") @db.Decimal(20, 9)
   
+  // SOL price at trade time (for USD calculations)
+  solPriceUsd Decimal? @map("sol_price_usd") @db.Decimal(20, 6)
+  
   signature String? @unique  // Unique constraint prevents duplicate trades
   
   createdAt DateTime @default(now()) @map("created_at")
@@ -234,20 +237,32 @@ model ChatReaction {
 model PriceCandle {
   id        String   @id @default(uuid())
   tokenMint String   @map("token_mint")
-  
+
   interval   String   // '1m', '5m', '15m', '1h', '1d'
   bucketTime DateTime @map("bucket_time")
-  
+
+  // SOL-denominated prices
   open   Decimal @db.Decimal(30, 18)
   high   Decimal @db.Decimal(30, 18)
   low    Decimal @db.Decimal(30, 18)
   close  Decimal @db.Decimal(30, 18)
   volume Decimal @db.Decimal(20, 9)  // SOL volume
-  trades Int     @default(1)
-  
+
+  // USD-denominated prices (derived from SOL price at candle time)
+  openUsd   Decimal? @map("open_usd") @db.Decimal(30, 18)
+  highUsd   Decimal? @map("high_usd") @db.Decimal(30, 18)
+  lowUsd    Decimal? @map("low_usd") @db.Decimal(30, 18)
+  closeUsd  Decimal? @map("close_usd") @db.Decimal(30, 18)
+  volumeUsd Decimal? @map("volume_usd") @db.Decimal(20, 2)  // USD volume
+
+  // SOL price used for USD calculations
+  solPriceUsd Decimal? @map("sol_price_usd") @db.Decimal(20, 6)
+
+  trades Int @default(1)
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  
+
   @@unique([tokenMint, interval, bucketTime])
   @@index([tokenMint, interval])
   @@index([bucketTime])

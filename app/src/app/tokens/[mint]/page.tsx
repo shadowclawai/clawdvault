@@ -15,7 +15,7 @@ import { subscribeToTokenStats, unsubscribeChannel } from '@/lib/supabase-client
 export default function TokenPage({ params }: { params: Promise<{ mint: string }> }) {
   const { mint } = use(params);
   const { connected, publicKey, balance: solBalance, connect, signTransaction } = useWallet();
-  const [mockMode, setMockMode] = useState<boolean | null>(null);
+  const [anchorAvailable, setAnchorAvailable] = useState<boolean | null>(null);
   
   const [token, setToken] = useState<Token | null>(null);
   const [trades, setTrades] = useState<Trade[]>([]);
@@ -167,10 +167,10 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
     try {
       const res = await fetch('/api/network');
       const data = await res.json();
-      setMockMode(data.mockMode ?? true);
+      setAnchorAvailable(data.anchorProgram === true);
     } catch (err) {
-      console.warn('Network check failed, assuming mock mode');
-      setMockMode(true);
+      console.warn('Network check failed');
+      setAnchorAvailable(false);
     }
   };
 
@@ -276,9 +276,15 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
   const handleTrade = async () => {
     if (!amount || !token || !connected || !publicKey) return;
     
-    // Wait for network mode to be determined
-    if (mockMode === null) {
+    // Wait for network check to complete
+    if (anchorAvailable === null) {
       setTradeResult({ success: false, error: 'Loading network status...' });
+      return;
+    }
+    
+    // Require Anchor program for non-graduated tokens
+    if (!anchorAvailable && !token.graduated) {
+      setTradeResult({ success: false, error: 'Anchor program not deployed - cannot trade on bonding curve' });
       return;
     }
     
@@ -286,35 +292,9 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
     setTradeResult(null);
 
     try {
-      console.log('Trade initiated:', { mockMode, tradeType, amount: parseFloat(amount) });
+      console.log('Trade initiated:', { anchorAvailable, tradeType, amount: parseFloat(amount) });
       
-      // Mock mode: use simple DB-only trade
-      if (mockMode === true) {
-        console.log('Using MOCK trade endpoint');
-        const res = await fetch('/api/trade', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            mint: token.mint,
-            type: tradeType,
-            amount: parseFloat(amount),
-            trader: publicKey,
-          }),
-        });
-
-        const data: TradeResponse = await res.json();
-        setTradeResult(data);
-
-        if (data.success) {
-          setAmount('');
-          fetchToken(); fetchHolders(token?.creator); fetchOnChainStats();
-          fetchTokenBalance();
-          setChartKey(k => k + 1); // Force chart refresh
-        }
-        return;
-      }
-
-      // On-chain mode: two-step prepare → sign → execute
+      // On-chain trading via Anchor (bonding curve) or Jupiter (graduated)
       console.log('Starting ON-CHAIN trade...');
       
       // Check if token is graduated - use Jupiter instead

@@ -33,7 +33,7 @@ export default function CreatePage() {
       try {
         const res = await fetch('/api/network');
         const data = await res.json();
-        setAnchorAvailable(data.anchorProgram === true && data.mockMode === false);
+        setAnchorAvailable(data.anchorProgram === true);
       } catch {
         setAnchorAvailable(false);
       }
@@ -231,8 +231,8 @@ export default function CreatePage() {
         return;
       }
       
-      // Fallback: use old custodial/mock flow
-      console.log('📦 Using mock/custodial flow');
+      // Fallback: use old custodial flow (when Anchor program not deployed)
+      console.log('📦 Using custodial flow (Anchor not available)');
       
       const body: CreateTokenRequest = {
         name,
@@ -576,12 +576,12 @@ export default function CreatePage() {
                   ) : anchorAvailable ? (
                     <>
                       <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                      <span className="text-green-400">Solana Devnet (On-chain)</span>
+                      <span className="text-green-400">Solana {process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? 'Mainnet' : 'Devnet'} (On-chain)</span>
                     </>
                   ) : (
                     <>
                       <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
-                      <span className="text-yellow-400">Mock Mode (Testing)</span>
+                      <span className="text-yellow-400">Anchor program not deployed</span>
                     </>
                   )}
                 </div>

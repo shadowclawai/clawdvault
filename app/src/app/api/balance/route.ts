@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { getAssociatedTokenAddress, getAccount } from '@solana/spl-token';
-import { isMockMode } from '@/lib/solana';
 
 const RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 
@@ -18,18 +17,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Mock mode: return 0 (no real balances)
-    if (isMockMode()) {
-      return NextResponse.json({
-        success: true,
-        wallet,
-        mint: mint || null,
-        tokenBalance: 0,
-        mockMode: true,
-      });
-    }
-
-    // On-chain mode: query actual SPL token balance
+    // Query actual SPL token balance from chain
     if (!mint) {
       return NextResponse.json({
         success: true,

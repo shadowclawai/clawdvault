@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getNetworkStatus, isMockMode, getConnection } from '@/lib/solana';
+import { getNetworkStatus, getConnection } from '@/lib/solana';
 import { findConfigPDA, PROGRAM_ID } from '@/lib/anchor';
 
 export const dynamic = 'force-dynamic';
@@ -8,8 +8,6 @@ export const dynamic = 'force-dynamic';
  * Check if the Anchor program is deployed by looking for the config PDA
  */
 async function checkAnchorProgram(): Promise<boolean> {
-  if (isMockMode()) return false;
-  
   try {
     const connection = getConnection();
     const [configPDA] = findConfigPDA();
@@ -26,7 +24,7 @@ export async function GET() {
     const anchorProgram = await checkAnchorProgram();
     
     // Don't expose full RPC URL (contains API key)
-    const rpcProvider = isMockMode() ? 'mock' : 
+    const rpcProvider = 
       process.env.SOLANA_RPC_URL?.includes('helius') ? 'helius' :
       process.env.SOLANA_RPC_URL?.includes('quicknode') ? 'quicknode' :
       'default';
@@ -43,7 +41,6 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       network: process.env.SOLANA_NETWORK || 'devnet',
-      mockMode: isMockMode(),
       anchorProgram: false,
       error: 'Failed to connect to Solana network',
     });

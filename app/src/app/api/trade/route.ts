@@ -4,7 +4,7 @@ import { updateCandles } from '@/lib/candles';
 
 export const dynamic = 'force-dynamic';
 
-// Admin API key for mock trades (dev/testing only)
+// Admin API key for database-only trades (dev/testing only)
 const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     // In production, completely disable if no ADMIN_API_KEY is set
     if (IS_PRODUCTION && !ADMIN_API_KEY) {
       return NextResponse.json(
-        { success: false, error: 'Mock trades disabled. Use /api/trade/prepare and /api/trade/execute for real trades.' },
+        { success: false, error: 'Direct trades disabled. Use /api/trade/prepare and /api/trade/execute for on-chain trades.' },
         { status: 403 }
       );
     }
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     
     // In dev, allow but log
     if (!IS_PRODUCTION) {
-      console.log(`[DEV] Mock trade from: ${apiKey || 'anonymous'}`);
+      console.log(`[DEV] DB-only trade from: ${apiKey || 'anonymous'}`);
     }
     
     const body: TradeRequest = await request.json();

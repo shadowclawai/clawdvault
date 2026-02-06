@@ -3,7 +3,7 @@
 
 import { Token, Trade, Agent, INITIAL_VIRTUAL_SOL, INITIAL_VIRTUAL_TOKENS, calculatePrice, calculateMarketCap } from './types';
 
-// Mock data store
+// In-memory data store (for testing only - production uses database)
 const tokens: Map<string, Token> = new Map();
 const trades: Trade[] = [];
 const agents: Map<string, Agent> = new Map();

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
-import { isMockMode } from '@/lib/solana';
 import { findBondingCurvePDA } from '@/lib/anchor/client';
 
 const RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
@@ -25,18 +24,6 @@ export async function GET(request: NextRequest) {
       { success: false, error: 'Missing mint parameter' },
       { status: 400 }
     );
-  }
-
-  // Mock mode: return empty holders
-  if (isMockMode()) {
-    return NextResponse.json({
-      success: true,
-      mint,
-      holders: [],
-      totalSupply: 1_000_000_000,
-      circulatingSupply: 0,
-      mockMode: true,
-    });
   }
 
   try {

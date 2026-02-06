@@ -154,15 +154,6 @@ export function getConnection(): Connection {
 }
 
 /**
- * Check if we're in mock mode (no RPC URL configured)
- * Non-custodial design: users sign their own transactions, no platform wallet needed
- */
-export function isMockMode(): boolean {
-  // If SOLANA_RPC_URL is explicitly set, we're in live mode
-  return !process.env.SOLANA_RPC_URL;
-}
-
-/**
  * Create a new SPL token on-chain
  * 
  * For now, this creates a basic SPL token.
@@ -171,14 +162,8 @@ export function isMockMode(): boolean {
 export async function createTokenOnChain(
   params: CreateTokenOnChainParams
 ): Promise<CreateTokenOnChainResult> {
-  // If no platform wallet, return mock result
   if (!PLATFORM_WALLET) {
-    console.log('⚠️ Mock mode: No PLATFORM_WALLET_SECRET configured');
-    const mockMint = Keypair.generate().publicKey.toBase58();
-    return {
-      mint: mockMint,
-      signature: `mock_${Date.now()}_${mockMint.slice(0, 8)}`,
-    };
+    throw new Error('PLATFORM_WALLET_SECRET not configured - required for on-chain token creation');
   }
 
   const connection = getConnection();
@@ -289,8 +274,6 @@ export async function getTokenBalance(
   mint: string,
   wallet: string
 ): Promise<number> {
-  if (isMockMode()) return 0;
-  
   const connection = getConnection();
   const mintPubkey = new PublicKey(mint);
   const walletPubkey = new PublicKey(wallet);
@@ -308,8 +291,6 @@ export async function getTokenBalance(
  * Get SOL balance for a wallet
  */
 export async function getSolBalance(wallet: string): Promise<number> {
-  if (isMockMode()) return 0;
-  
   const connection = getConnection();
   const pubkey = new PublicKey(wallet);
   const balance = await connection.getBalance(pubkey);
@@ -326,7 +307,7 @@ export async function transferTokens(
   amount: number
 ): Promise<string> {
   if (!PLATFORM_WALLET) {
-    return `mock_transfer_${Date.now()}`;
+    throw new Error('PLATFORM_WALLET_SECRET not configured');
   }
   
   const connection = getConnection();
@@ -380,8 +361,8 @@ export async function executeInitialBuy(
   virtualSol: number,
   virtualTokens: number
 ): Promise<{ signature: string; tokensReceived: number } | null> {
-  if (isMockMode() || !PLATFORM_WALLET) {
-    return null; // Let DB handle it in mock mode
+  if (!PLATFORM_WALLET) {
+    return null; // Non-custodial mode - initial buy handled by Anchor program
   }
 
   // Calculate tokens using bonding curve math
@@ -443,7 +424,6 @@ export async function executeInitialBuy(
 export async function getNetworkStatus(): Promise<{
   network: string;
   slot: number;
-  mockMode: boolean;
 }> {
   const connection = getConnection();
   const slot = await connection.getSlot();
@@ -451,7 +431,6 @@ export async function getNetworkStatus(): Promise<{
   return {
     network: NETWORK,
     slot,
-    mockMode: isMockMode(),
   };
 }
 

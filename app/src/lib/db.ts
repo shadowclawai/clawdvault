@@ -235,7 +235,7 @@ export async function createToken(data: {
   telegram?: string;
   website?: string;
 }): Promise<Token | null> {
-  const mint = data.mint || generateMint(); // Use provided mint or generate mock one
+  const mint = data.mint || generateMint(); // Use provided mint or generate random one for testing
   
   try {
     const token = await db().token.create({
@@ -336,7 +336,7 @@ export async function executeTrade(
           totalFee: fees.total,
           protocolFee: fees.protocol,
           creatorFee: fees.creator,
-          signature: signature || `mock_${Date.now()}`,
+          signature: signature || `db_${Date.now()}`,
         },
       });
       
@@ -426,7 +426,7 @@ export async function executeTrade(
           totalFee: fees.total,
           protocolFee: fees.protocol,
           creatorFee: fees.creator,
-          signature: signature || `mock_${Date.now()}`,
+          signature: signature || `db_${Date.now()}`,
         },
       });
       

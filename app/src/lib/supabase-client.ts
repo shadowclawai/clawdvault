@@ -57,6 +57,9 @@ export function subscribeToChatMessages(
 ): RealtimeChannel {
   const client = getSupabaseClient();
   
+  console.log('[Realtime] Subscribing to chat for:', mint);
+  
+  // Subscribe without filter - filter client-side (more reliable with hosted Supabase)
   const channel = client
     .channel(`chat:${mint}`)
     .on(
@@ -65,10 +68,13 @@ export function subscribeToChatMessages(
         event: 'INSERT',
         schema: 'public',
         table: 'chat_messages',
-        filter: `token_mint=eq.${mint}`
       },
       (payload) => {
-        onInsert(payload.new as RealtimeMessage);
+        const msg = payload.new as RealtimeMessage;
+        if (msg?.token_mint === mint) {
+          console.log('[Realtime] Chat message received:', msg.id);
+          onInsert(msg);
+        }
       }
     );
   
@@ -79,15 +85,20 @@ export function subscribeToChatMessages(
         event: 'DELETE',
         schema: 'public',
         table: 'chat_messages',
-        filter: `token_mint=eq.${mint}`
       },
       (payload) => {
-        onDelete((payload.old as any).id);
+        const old = payload.old as any;
+        if (old?.token_mint === mint) {
+          console.log('[Realtime] Chat message deleted:', old.id);
+          onDelete(old.id);
+        }
       }
     );
   }
   
-  channel.subscribe();
+  channel.subscribe((status) => {
+    console.log('[Realtime] Chat subscription status:', status);
+  });
   return channel;
 }
 
@@ -98,6 +109,9 @@ export function subscribeToTrades(
 ): RealtimeChannel {
   const client = getSupabaseClient();
   
+  console.log('[Realtime] Subscribing to trades for:', mint);
+  
+  // Subscribe without filter - filter client-side (more reliable with hosted Supabase)
   const channel = client
     .channel(`trades:${mint}`)
     .on(
@@ -106,13 +120,18 @@ export function subscribeToTrades(
         event: 'INSERT',
         schema: 'public',
         table: 'trades',
-        filter: `token_mint=eq.${mint}`
       },
       (payload) => {
-        onInsert(payload.new as RealtimeTrade);
+        const trade = payload.new as RealtimeTrade;
+        if (trade?.token_mint === mint) {
+          console.log('[Realtime] Trade received:', trade.id);
+          onInsert(trade);
+        }
       }
     )
-    .subscribe();
+    .subscribe((status) => {
+      console.log('[Realtime] Trades subscription status:', status);
+    });
   
   return channel;
 }
@@ -124,6 +143,8 @@ export function subscribeToReactions(
 ): RealtimeChannel {
   const client = getSupabaseClient();
   
+  console.log('[Realtime] Subscribing to reactions for:', mint);
+  
   // Subscribe to both inserts and deletes on reactions
   const channel = client
     .channel(`reactions:${mint}`)
@@ -134,12 +155,15 @@ export function subscribeToReactions(
         schema: 'public',
         table: 'message_reactions'
       },
-      () => {
+      (payload) => {
+        console.log('[Realtime] Reaction change:', payload.eventType);
         // Trigger refetch of messages to get updated reaction counts
         onChange();
       }
     )
-    .subscribe();
+    .subscribe((status) => {
+      console.log('[Realtime] Reactions subscription status:', status);
+    });
   
   return channel;
 }

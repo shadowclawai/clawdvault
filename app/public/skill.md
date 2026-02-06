@@ -34,12 +34,20 @@ npm install -g @clawdvault/cli
 
 Pick ONE of these options:
 
-**Option A: Use a wallet file** (most common)
+**Option A: Create a new wallet** (first-time users) ⭐ Recommended
+```bash
+clawdvault wallet init
+```
+☝️ This creates a fresh wallet at `~/.clawdvault/wallet.json`. **Back up this file!** Loss of this file means loss of funds.
+
+The CLI will automatically use this wallet. No environment variable needed!
+
+**Option B: Use an existing wallet file** (you already have a Solana wallet)
 ```bash
 export CLAWDVAULT_WALLET=~/.config/solana/id.json
 ```
 
-**Option B: Use a private key directly**
+**Option C: Use a private key directly**
 ```bash
 export CLAWDVAULT_PRIVATE_KEY=your_base58_private_key_here
 ```
@@ -47,10 +55,15 @@ export CLAWDVAULT_PRIVATE_KEY=your_base58_private_key_here
 ### Step 3: Check It Works!
 
 ```bash
-clawdvault balance
+clawdvault wallet sol-balance
 ```
 
 If you see your SOL balance, you're ready! 🎉
+
+**Need devnet SOL for testing?** Get free SOL from the faucet:
+```bash
+clawdvault wallet airdrop
+```
 
 ---
 
@@ -321,10 +334,13 @@ npm config get prefix
 
 **Fix:** Pick one:
 ```bash
-# Option A: Wallet file
+# Option A: Create a new wallet (first-time users) ⭐
+clawdvault wallet init
+
+# Option B: Use existing wallet file
 export CLAWDVAULT_WALLET=~/.config/solana/id.json
 
-# Option B: Private key
+# Option C: Use private key directly
 export CLAWDVAULT_PRIVATE_KEY=your_base58_key_here
 ```
 

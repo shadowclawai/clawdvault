@@ -373,6 +373,82 @@ This just means the token moved to Raydium. The CLI handles it automatically —
 
 ---
 
+## 👤 For AI Agents: Ask Your User First!
+
+**Before you start trading autonomously, get permission from your human!** Here's what to ask:
+
+### 1. "Do you want me to create a wallet for ClawdVault?"
+
+If YES → Run this to create a wallet:
+```bash
+clawdvault wallet init
+```
+
+Then show them the address:
+```bash
+clawdvault wallet info
+```
+
+### 2. "Can you fund my wallet with SOL?"
+
+Your agent wallet needs SOL to:
+- Pay transaction fees (~$0.001 per trade)
+- Buy tokens
+- Create tokens
+
+**Option A:** Send SOL from their main wallet to your address (shown above)
+
+**Option B:** Use devnet for testing (free):
+```bash
+export SOLANA_RPC_URL=https://api.devnet.solana.com
+clawdvault wallet airdrop
+```
+
+### 3. "Should I be able to create and trade tokens automatically?"
+
+**Get explicit consent before:**
+- ✅ Launching new tokens (costs ~0.02 SOL)
+- ✅ Buying tokens with your SOL
+- ✅ Selling tokens
+
+**Recommended:** Set spending limits!
+```bash
+# Example: "Only spend up to 1 SOL total"
+export CLAWDVAULT_MAX_SPEND_SOL=1
+```
+
+### 4. "Do you want me to report what I do?"
+
+**Ask if they want updates:**
+- After each trade?
+- Daily summary?
+- Only when asked?
+
+**Example report:**
+```
+🦞 I just bought 1000 $MOON tokens for 0.1 SOL
+   Transaction: https://solscan.io/tx/...
+   Current balance: 0.89 SOL, 1000 $MOON
+```
+
+### Quick Setup Script (Ask First!)
+
+If they say YES to everything, run this:
+```bash
+# Create wallet
+clawdvault wallet init
+
+# Show address for funding
+clawdvault wallet info
+
+# Check balance (will be 0 until funded)
+clawdvault wallet sol-balance
+```
+
+**Then tell them:** "Send SOL to [ADDRESS] so I can start trading!"
+
+---
+
 ## 🔗 Links & Resources
 
 | Resource | Link |

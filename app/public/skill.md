@@ -42,6 +42,12 @@ clawdvault wallet init
 
 The CLI will automatically use this wallet. No environment variable needed!
 
+**Want to import into Phantom later?** Use `--mnemonic`:
+```bash
+clawdvault wallet init --mnemonic
+```
+☝️ This generates a 24-word seed phrase you can write down and import into Phantom!
+
 **Option B: Use an existing wallet file** (you already have a Solana wallet)
 ```bash
 export CLAWDVAULT_WALLET=~/.config/solana/id.json
@@ -451,26 +457,33 @@ clawdvault wallet sol-balance
 
 ## 🔐 Importing Your CLI Wallet into Phantom (Optional)
 
-**⚠️ SECURITY WARNING:** This exposes your private key. Only do this if:
-- You need to access the same wallet in Phantom
-- You understand the risks
-- You're okay with the tradeoff
+**⚠️ SECURITY WARNING:** Sharing private keys is dangerous. Only do this if you understand the risks!
 
-### Option 1: Export Private Key (Use with Caution)
+### Option 1: Use Seed Phrase (Recommended if you need Phantom access)
 
-**First, export your private key from the CLI:**
+**When creating the wallet, use `--mnemonic`:**
 ```bash
-clawdvault wallet export
+clawdvault wallet init --mnemonic
 ```
 
-⚠️ **BIG RED WARNING:** This will display your private key. Anyone who sees it can steal ALL your funds!
+**You'll see output like:**
+```
+📝 SEED PHRASE (Write this down!):
+abandon ability able about above absent absorb abstract absurd abuse access...
+```
 
-**Then import into Phantom:**
+**Write this down safely, then import into Phantom:**
 1. Open Phantom wallet
 2. Click "Add / Connect Wallet"
-3. Select "Import Private Key"
-4. Paste the key from the CLI
+3. Select "Import Recovery Phrase"
+4. Enter the 24 words from the CLI
 5. Name it (e.g., "Agent Wallet")
+
+✅ **Benefits:** Standard BIP39 wallet, recoverable, works in both CLI and Phantom
+
+### Option 2: Export Private Key (Not Recommended)
+
+**We don't provide a private key export command** — it's too dangerous. If you created a wallet without `--mnemonic`, treat it as CLI-only.
 
 ### Option 2: Use Separate Wallets (Recommended)
 

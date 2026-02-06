@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/moltx-prices",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/moltx-promo",
+      "schedule": "15,45 * * * *"
     }
   ]
 }

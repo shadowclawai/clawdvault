@@ -163,7 +163,6 @@ export async function getAllTokens(options?: {
   const candles24hAgo = await db().priceCandle.findMany({
     where: {
       tokenMint: { in: tokenMints },
-      interval: '1h',
       bucketTime: { lte: dayAgo }
     },
     orderBy: { bucketTime: 'desc' },
@@ -241,7 +240,6 @@ export async function getToken(mint: string): Promise<Token | null> {
     db().priceCandle.findFirst({
       where: {
         tokenMint: mint,
-        interval: '1h',
         bucketTime: { lte: dayAgo }
       },
       orderBy: { bucketTime: 'desc' },

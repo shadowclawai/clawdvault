@@ -159,11 +159,11 @@ export async function getAllTokens(options?: {
     closeUsd: c.closeUsd ? Number(c.closeUsd) : undefined
   }]));
 
-  // Fetch 24h old candles for price change calculation (using 5m USD candles)
+  // Fetch 24h old candles for price change calculation (using 1m USD candles)
   const candles24hAgo = await db().priceCandle.findMany({
     where: {
       tokenMint: { in: tokenMints },
-      interval: '5m',
+      interval: '1m',
       bucketTime: { lte: dayAgo }
     },
     orderBy: { bucketTime: 'desc' },
@@ -241,7 +241,7 @@ export async function getToken(mint: string): Promise<Token | null> {
     db().priceCandle.findFirst({
       where: {
         tokenMint: mint,
-        interval: '5m',
+        interval: '1m',
         bucketTime: { lte: dayAgo }
       },
       orderBy: { bucketTime: 'desc' },

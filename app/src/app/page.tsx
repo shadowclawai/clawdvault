@@ -136,7 +136,7 @@ async function getHomeData() {
       db().priceCandle.findMany({
         where: {
           tokenMint: { in: uniqueMints },
-          interval: '5m',
+          interval: '1m',
           bucketTime: { lte: oneDayAgo }
         },
         orderBy: { bucketTime: 'desc' },

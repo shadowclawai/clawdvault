@@ -184,13 +184,35 @@ export async function getUsdCandles(
     orderBy: { bucketTime: 'asc' },
     take: limit,
   });
-  
-  return candles.map((c) => ({
-    time: Math.floor(c.bucketTime.getTime() / 1000),
-    open: Number(c.openUsd ?? c.open),
-    high: Number(c.highUsd ?? c.high),
-    low: Number(c.lowUsd ?? c.low),
-    close: Number(c.closeUsd ?? c.close),
-    volume: Number(c.volumeUsd ?? 0),
-  })).filter(c => c.close > 0); // Only return candles with USD data
+
+  return candles.map((c) => {
+    // Use stored USD OHLC values if available
+    const openUsd = c.openUsd ? Number(c.openUsd) : Number(c.open);
+    const highUsd = c.highUsd ? Number(c.highUsd) : Number(c.high);
+    const lowUsd = c.lowUsd ? Number(c.lowUsd) : Number(c.low);
+    const closeUsd = c.closeUsd ? Number(c.closeUsd) : Number(c.close);
+
+    // Calculate USD volume
+    // Priority: 1) stored volumeUsd, 2) calculated from SOL volume * SOL price
+    let volumeUsd: number;
+    if (c.volumeUsd) {
+      volumeUsd = Number(c.volumeUsd);
+    } else if (c.solPriceUsd && c.volume) {
+      // Calculate from SOL volume * SOL price at candle time
+      volumeUsd = Number(c.volume) * Number(c.solPriceUsd);
+    } else {
+      // Estimate SOL price from OHLC ratio (closeUsd / close)
+      const solPriceEstimate = Number(c.close) > 0 ? closeUsd / Number(c.close) : 0;
+      volumeUsd = solPriceEstimate > 0 ? Number(c.volume) * solPriceEstimate : 0;
+    }
+
+    return {
+      time: Math.floor(c.bucketTime.getTime() / 1000),
+      open: openUsd,
+      high: highUsd,
+      low: lowUsd,
+      close: closeUsd,
+      volume: volumeUsd,
+    };
+  }).filter(c => c.close > 0); // Only return candles with USD data
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { executeTrade, getToken } from '@/lib/db';
 import { updateCandles } from '@/lib/candles';
+import { getSolPrice } from '@/lib/sol-price';
 
 export const dynamic = 'force-dynamic';
 
@@ -99,11 +100,14 @@ export async function POST(request: Request) {
       );
     }
     
-    // Update price candles for charts
+    // Update price candles for charts (with USD conversion)
+    const solPriceUsd = await getSolPrice();
     await updateCandles(
-      body.mint, 
-      result.token.price_sol, 
-      result.trade.sol_amount
+      body.mint,
+      result.token.price_sol,
+      result.trade.sol_amount,
+      new Date(),
+      solPriceUsd ?? undefined
     ).catch(err => {
       console.warn('Failed to update candles:', err);
     });

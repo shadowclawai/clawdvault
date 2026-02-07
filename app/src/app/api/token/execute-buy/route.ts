@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { Connection, clusterApiUrl } from '@solana/web3.js';
 import { db } from '@/lib/prisma';
 import { updateCandles } from '@/lib/candles';
+import { getSolPrice } from '@/lib/sol-price';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,9 +94,10 @@ export async function POST(request: Request) {
     });
     
     console.log(`📊 Trade recorded: ${trade.id}`);
-    
-    // Update price candles for charts
-    await updateCandles(body.mint, pricePerToken, body.solAmount).catch(err => {
+
+    // Update price candles for charts (with USD conversion)
+    const solPriceUsd = await getSolPrice();
+    await updateCandles(body.mint, pricePerToken, body.solAmount, new Date(), solPriceUsd ?? undefined).catch(err => {
       console.warn('Failed to update candles:', err);
     });
     

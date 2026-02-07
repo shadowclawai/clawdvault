@@ -93,10 +93,69 @@ curl https://clawdvault.com/api/tokens/MINT_ADDRESS
 # Get SOL price
 curl https://clawdvault.com/api/sol-price
 
+# Get candle data (SOL currency - default)
+curl "https://clawdvault.com/api/candles?mint=MINT_ADDRESS&interval=5m&currency=sol"
+
+# Get candle data (USD currency)
+curl "https://clawdvault.com/api/candles?mint=MINT_ADDRESS&interval=5m&currency=usd"
+
 # Prepare a buy transaction (returns unsigned tx for user to sign)
 curl -X POST https://clawdvault.com/api/token/prepare-buy \
   -H "Content-Type: application/json" \
   -d '{"mint": "...", "buyer": "...", "solAmount": 0.1}'
+```
+
+### Candle Data API
+
+The candles endpoint returns OHLCV (Open, High, Low, Close, Volume) data for price charts.
+
+**Endpoint:** `GET /api/candles?mint={MINT}&interval={INTERVAL}&currency={CURRENCY}`
+
+**Parameters:**
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `mint` | Yes | - | Token mint address |
+| `interval` | No | `5m` | Time interval (`1m`, `5m`, `15m`, `1h`, `4h`, `1d`) |
+| `currency` | No | `sol` | Currency for OHLCV values (`sol` or `usd`) |
+
+**Currency Behavior:**
+- `currency=sol` - All OHLCV values returned in SOL (volume = SOL volume traded)
+- `currency=usd` - All OHLCV values returned in USD (volume = USD volume traded)
+
+**Example Response (SOL currency):**
+```json
+{
+  "candles": [
+    {
+      "timestamp": "2026-02-06T20:00:00.000Z",
+      "open": 0.000028,
+      "high": 0.000031,
+      "low": 0.000027,
+      "close": 0.000030,
+      "volume": 150.5
+    }
+  ],
+  "interval": "5m",
+  "currency": "sol"
+}
+```
+
+**Example Response (USD currency):**
+```json
+{
+  "candles": [
+    {
+      "timestamp": "2026-02-06T20:00:00.000Z",
+      "open": 0.0056,
+      "high": 0.0062,
+      "low": 0.0054,
+      "close": 0.0060,
+      "volume": 301.0
+    }
+  ],
+  "interval": "5m",
+  "currency": "usd"
+}
 ```
 
 For AI agents, see [SKILL.md](https://clawdvault.com/SKILL.md) for a concise reference.

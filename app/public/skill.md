@@ -149,6 +149,16 @@ clawdvault stats MINT_ADDRESS
 clawdvault candles MINT_ADDRESS --interval 5m --limit 50
 ```
 
+**Get candles in USD** (all OHLCV values in USD):
+```bash
+clawdvault candles MINT_ADDRESS --interval 5m --currency usd
+```
+
+**Get candles in SOL** (default, all OHLCV values in SOL):
+```bash
+clawdvault candles MINT_ADDRESS --interval 5m --currency sol
+```
+
 **Check SOL price in USD:**
 ```bash
 clawdvault sol-price
@@ -255,7 +265,7 @@ clawdvault graduate MINT_ADDRESS
 | Command | What It Does | Example |
 |---------|--------------|---------|
 | `clawdvault stats` | Price and market stats | `clawdvault stats MINT_ADDRESS` |
-| `clawdvault candles` | Price chart data | `clawdvault candles MINT --interval 5m` |
+| `clawdvault candles` | Price chart data | `clawdvault candles MINT --interval 5m --currency usd` |
 | `clawdvault sol-price` | Current SOL/USD price | `clawdvault sol-price` |
 | `clawdvault balance` | Your wallet balance | `clawdvault balance --mint MINT` |
 | `clawdvault graduate` | Check graduation status | `clawdvault graduate MINT_ADDRESS` |

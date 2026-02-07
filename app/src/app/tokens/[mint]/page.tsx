@@ -722,15 +722,16 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
             
             {/* Chart - order-1 mobile, spans 2 cols on desktop */}
             <div className="order-1 lg:order-none lg:col-span-2 min-w-0">
-              <PriceChart 
+              <PriceChart
                 key={chartKey}
-                mint={token.mint} 
+                mint={token.mint}
                 height={500}
                 currentMarketCap={token?.market_cap_usd ?? onChainStats?.marketCapUsd ?? 0}
                 marketCapSol={token?.market_cap_sol ?? onChainStats?.marketCap ?? 0}
                 marketCapUsd={token?.market_cap_usd ?? onChainStats?.marketCapUsd ?? null}
                 volume24h={token.volume_24h || 0}
                 holders={holders.length > 0 ? holders.length : (token.holders || 0)}
+                priceChange24h={token.price_change_24h}
                 onMarketCapUpdate={setCandleMarketCap}
               />
             </div>

@@ -23,6 +23,7 @@ interface PriceChartProps {
   marketCapUsd?: number | null;
   volume24h?: number;
   holders?: number;
+  priceChange24h?: number | null;
   // Callback when market cap updates (source of truth)
   onMarketCapUpdate?: (marketCap: number) => void;
 }
@@ -32,15 +33,16 @@ type Interval = '1m' | '5m' | '15m' | '1h' | '1d';
 
 const TOTAL_SUPPLY = 1_000_000_000;
 
-export default function PriceChart({ 
-  mint, 
-  height = 400, 
+export default function PriceChart({
+  mint,
+  height = 400,
   totalSupply = TOTAL_SUPPLY,
   currentMarketCap = 0,
   marketCapSol = 0,
   marketCapUsd = null,
   volume24h = 0,
   holders = 0,
+  priceChange24h: priceChange24hProp,
   onMarketCapUpdate,
 }: PriceChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -53,21 +55,25 @@ export default function PriceChart({
   const [chartType, setChartType] = useState<ChartType>('candle');
   const [timeInterval, setTimeInterval] = useState<Interval>('5m');
 
-  // Calculate price change from first open to last close (24h candles preferred)
+  // Use prop if provided, otherwise calculate from candles
   const priceChange24h = useMemo(() => {
-    // Use 24h candles if available (1h interval data)
+    if (priceChange24hProp !== null && priceChange24hProp !== undefined) {
+      return priceChange24hProp;
+    }
+
+    // Fallback: calculate from visible candles
     const candlesToUse = candles24h.length > 0 ? candles24h : candles;
-    
+
     if (candlesToUse.length === 0) return 0;
-    
+
     // First candle's OPEN vs last candle's CLOSE
     const firstOpen = candlesToUse[0].open;
     const lastClose = candlesToUse[candlesToUse.length - 1].close;
-    
+
     if (firstOpen === 0) return 0;
-    
+
     return ((lastClose - firstOpen) / firstOpen) * 100;
-  }, [candles24h, candles]);
+  }, [candles24h, candles, priceChange24hProp]);
 
   // Calculate current market cap from last candle close (candles are USD price)
   const candleMarketCap = useMemo(() => {

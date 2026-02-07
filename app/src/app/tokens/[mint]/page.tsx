@@ -49,6 +49,18 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
   } | null>(null);
   const [candleMarketCap, setCandleMarketCap] = useState<number>(0);
   const [creatorUsername, setCreatorUsername] = useState<string | null>(null);
+  const [candle24hAgo, setCandle24hAgo] = useState<{ closeUsd: number } | null>(null);
+  const [lastCandle, setLastCandle] = useState<{ closeUsd: number } | null>(null);
+
+  // Calculate 24h price change from streamed candles (frontend calculation)
+  const priceChange24h = useMemo(() => {
+    if (lastCandle?.closeUsd && candle24hAgo?.closeUsd && candle24hAgo.closeUsd > 0) {
+      const change = ((lastCandle.closeUsd - candle24hAgo.closeUsd) / candle24hAgo.closeUsd) * 100;
+      return Number(change.toFixed(2));
+    }
+    // Fallback to API value if candles not available
+    return token?.price_change_24h ?? null;
+  }, [lastCandle, candle24hAgo, token?.price_change_24h]);
 
   // Effective market cap: on-chain initially, then candles after first update
   // Candles include heartbeat candles, so they stay updated with current SOL price
@@ -158,6 +170,13 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
     };
   }, [mint]);
 
+  // Poll for 24h change candles every minute
+  useEffect(() => {
+    fetchCandlesFor24hChange();
+    const interval = setInterval(fetchCandlesFor24hChange, 60 * 1000);
+    return () => clearInterval(interval);
+  }, [mint]);
+
   // Refetch holders when token loads (to pass creator for labeling)
   useEffect(() => {
     if (token?.mint) {
@@ -202,6 +221,30 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
       }
     } catch (err) {
       console.warn('On-chain stats fetch failed');
+    }
+  };
+
+  // Fetch candles for 24h change calculation
+  const fetchCandlesFor24hChange = async () => {
+    try {
+      const now = new Date();
+      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+      // Fetch last candle
+      const lastRes = await fetch(`/api/candles?mint=${mint}&interval=1m&limit=1&currency=usd`);
+      const lastData = await lastRes.json();
+      if (lastData.candles?.length > 0) {
+        setLastCandle({ closeUsd: lastData.candles[0].close });
+      }
+
+      // Fetch candle from ~24h ago
+      const agoRes = await fetch(`/api/candles?mint=${mint}&interval=1m&currency=usd&to=${oneDayAgo.toISOString()}&limit=1`);
+      const agoData = await agoRes.json();
+      if (agoData.candles?.length > 0) {
+        setCandle24hAgo({ closeUsd: agoData.candles[0].close });
+      }
+    } catch (err) {
+      console.warn('Failed to fetch candles for 24h change:', err);
     }
   };
 
@@ -731,7 +774,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                 marketCapUsd={token?.market_cap_usd ?? onChainStats?.marketCapUsd ?? null}
                 volume24h={token.volume_24h || 0}
                 holders={holders.length > 0 ? holders.length : (token.holders || 0)}
-                priceChange24h={token.price_change_24h}
+                priceChange24h={priceChange24h}
                 onMarketCapUpdate={setCandleMarketCap}
               />
             </div>
@@ -872,11 +915,11 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                     </span>
                   </div>
                 )}
-                {token.price_change_24h !== null && token.price_change_24h !== undefined && (
+                {priceChange24h !== null && priceChange24h !== undefined && (
                   <div className="flex justify-between text-sm mt-1">
                     <span className="text-gray-400">24h Change</span>
-                    <span className={`font-mono ${token.price_change_24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {token.price_change_24h >= 0 ? '+' : ''}{token.price_change_24h.toFixed(2)}%
+                    <span className={`font-mono ${priceChange24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {priceChange24h >= 0 ? '+' : ''}{priceChange24h.toFixed(2)}%
                     </span>
                   </div>
                 )}

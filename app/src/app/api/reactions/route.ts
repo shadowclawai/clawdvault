@@ -102,15 +102,6 @@ export async function POST(req: NextRequest) {
 // Remove reaction
 export async function DELETE(req: NextRequest) {
   try {
-    // Extract auth headers
-    const auth = extractAuth(req);
-    if (!auth) {
-      return NextResponse.json(
-        { success: false, error: 'Missing authentication headers (X-Wallet, X-Signature)' },
-        { status: 401 }
-      );
-    }
-
     const { searchParams } = new URL(req.url);
     const messageId = searchParams.get('messageId');
     const emoji = searchParams.get('emoji');
@@ -122,16 +113,29 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    // Verify signature
-    const signedData = { messageId, emoji };
-    if (!verifyWalletAuth(auth.wallet, auth.signature, 'unreact', signedData)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid signature' },
-        { status: 401 }
-      );
-    }
+    // Try session token first
+    let wallet = await verifySession(req);
+    
+    // Fall back to signature auth
+    if (!wallet) {
+      const auth = extractAuth(req);
+      if (!auth) {
+        return NextResponse.json(
+          { success: false, error: 'Authentication required' },
+          { status: 401 }
+        );
+      }
 
-    const wallet = auth.wallet;
+      // Verify signature
+      const signedData = { messageId, emoji };
+      if (!verifyWalletAuth(auth.wallet, auth.signature, 'unreact', signedData)) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid signature' },
+          { status: 401 }
+        );
+      }
+      wallet = auth.wallet;
+    }
 
     // Delete reaction - only the authenticated user's reaction
     await db().chatReaction.deleteMany({

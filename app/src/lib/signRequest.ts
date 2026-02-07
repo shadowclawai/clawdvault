@@ -177,7 +177,7 @@ export async function authenticatedPost(
 }
 
 /**
- * Make an authenticated DELETE request
+ * Make an authenticated DELETE request (tries session first, falls back to signature)
  */
 export async function authenticatedDelete(
   wallet: WalletInterface,
@@ -185,6 +185,20 @@ export async function authenticatedDelete(
   action: string,
   signedData: Record<string, unknown>
 ): Promise<Response> {
+  // For unreact action, try session auth first
+  if (action === 'unreact') {
+    const sessionToken = await getOrCreateSession(wallet);
+    if (sessionToken) {
+      return fetch(url, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${sessionToken}`,
+        },
+      });
+    }
+  }
+  
+  // Fall back to per-request signing
   const authHeaders = await signRequest(wallet, action, signedData);
   
   if (!authHeaders) {

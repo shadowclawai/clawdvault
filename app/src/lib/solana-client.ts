@@ -4,29 +4,24 @@
  */
 import { PublicKey } from '@solana/web3.js';
 
-// Public RPC endpoints (client can use these directly)
-// Note: Solana Labs public RPCs block browser requests (CORS/403)
-// Client-side code should use our API endpoints instead
-const RPC_ENDPOINTS = {
-  devnet: 'https://api.devnet.solana.com',
-  mainnet: 'https://api.mainnet-beta.solana.com', // May fail client-side due to CORS
-};
-
-// Get RPC URL based on network
-// NOTE: Client-side uses public RPCs to avoid leaking API keys
+// Get RPC URL based on environment
+// NOTE: Client-side uses our secure proxy to avoid leaking API keys
 export function getRpcUrl(): string {
-  // Server-side can use private RPC with API key
+  // Server-side can use private RPC with API key directly
   if (typeof window === 'undefined') {
-    const serverRpc = process.env.SOLANA_RPC_URL || process.env.NEXT_PUBLIC_RPC_URL;
+    const serverRpc = process.env.SOLANA_RPC_URL;
     if (serverRpc) return serverRpc;
+    
+    // Fallback to public RPC on server
+    const network = process.env.SOLANA_NETWORK || 'devnet';
+    return network === 'mainnet-beta' 
+      ? 'https://api.mainnet-beta.solana.com'
+      : 'https://api.devnet.solana.com';
   }
   
-  // Client-side: use public RPCs only (no API keys!)
-  const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet';
-  if (network === 'mainnet-beta') {
-    return RPC_ENDPOINTS.mainnet; // Public mainnet RPC
-  }
-  return RPC_ENDPOINTS.devnet;
+  // Client-side: ALWAYS use our secure proxy
+  // The proxy adds the API key server-side so it's never exposed to the browser
+  return '/api/rpc';
 }
 
 // ClawdVault Program ID

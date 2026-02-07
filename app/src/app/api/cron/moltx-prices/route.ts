@@ -16,17 +16,6 @@ const MOLTX_EVM_ADDRESS = process.env.MOLTX_EVM_ADDRESS;
 const CLAWDVAULT_URL = 'https://clawdvault.com';
 const TOP_N = 5; // Number of tokens to feature
 
-// Fetch SOL price
-async function getSolPrice(): Promise<number> {
-  try {
-    const res = await fetch(`${CLAWDVAULT_URL}/api/sol-price`);
-    const data = await res.json();
-    return data.price || 0;
-  } catch {
-    return 0;
-  }
-}
-
 // Format SOL amount (handles very small prices like 0.00000003)
 function formatSol(amount: number): string {
   if (amount >= 1) return amount.toFixed(2);
@@ -92,10 +81,7 @@ export async function GET(request: Request) {
       });
     }
 
-    // Get SOL price for USD conversion
-    const solPrice = await getSolPrice();
-    
-    // Build the price update post
+    // Build the price update post using USD values directly from database
     let content = `📊 ClawdVault Top ${tokens.length} Tokens\n\n`;
 
     for (let i = 0; i < tokens.length; i++) {
@@ -103,7 +89,8 @@ export async function GET(request: Request) {
       const rank = i + 1;
       const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}.`;
       
-      const mcapUsd = solPrice ? ` (${formatUsd(token.market_cap_sol * solPrice)})` : '';
+      // Use market_cap_usd directly from database (calculated from candles)
+      const mcapUsd = token.market_cap_usd ? ` (${formatUsd(token.market_cap_usd)})` : '';
       
       content += `${medal} $${token.symbol}\n`;
       content += `   🏦 MCap: ${formatMcap(token.market_cap_sol)} SOL${mcapUsd}\n`;

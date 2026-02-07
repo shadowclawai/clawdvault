@@ -21,7 +21,7 @@
       "schedule": "15,45 * * * *"
     },
     {
-      "path": "/api/cron/heartbeat-candles",
+      "path": "/api/cron/update-sol-price",
       "schedule": "* * * * *"
     }
   ]

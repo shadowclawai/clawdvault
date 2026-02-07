@@ -89,49 +89,52 @@ export async function getSolPriceWithMeta(): Promise<{ price: number; source: st
 /**
  * Fetch SOL price directly from APIs
  * Uses CoinGecko first, then Binance
+ * Returns null on any failure rather than throwing
  */
 async function fetchSolPriceFromApi(): Promise<number | null> {
   const now = Date.now();
   
   // Try CoinGecko first
-  try {
+  const coinGeckoPrice = await fetchWithFallback(async () => {
     const response = await fetch(
       'https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd',
       { signal: AbortSignal.timeout(5000) }
     );
     
-    if (response.ok) {
-      const data = await response.json();
-      const price = data.solana?.usd;
-      
-      if (typeof price === 'number' && price > 0) {
-        solPriceCache = { price, timestamp: now, source: 'coingecko' };
-        return price;
-      }
+    if (!response.ok) return null;
+    
+    const data = await response.json();
+    const price = data.solana?.usd;
+    
+    if (typeof price === 'number' && price > 0) {
+      solPriceCache = { price, timestamp: now, source: 'coingecko' };
+      return price;
     }
-  } catch (error) {
-    console.warn('[getSolPrice] CoinGecko failed:', error);
-  }
+    return null;
+  }, 'CoinGecko');
+  
+  if (coinGeckoPrice !== null) return coinGeckoPrice;
   
   // Fallback to Binance
-  try {
+  const binancePrice = await fetchWithFallback(async () => {
     const response = await fetch(
       'https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT',
       { signal: AbortSignal.timeout(5000) }
     );
     
-    if (response.ok) {
-      const data = await response.json();
-      const price = parseFloat(data.price);
-      
-      if (!isNaN(price) && price > 0) {
-        solPriceCache = { price, timestamp: now, source: 'binance' };
-        return price;
-      }
+    if (!response.ok) return null;
+    
+    const data = await response.json();
+    const price = parseFloat(data.price);
+    
+    if (!isNaN(price) && price > 0) {
+      solPriceCache = { price, timestamp: now, source: 'binance' };
+      return price;
     }
-  } catch (error) {
-    console.warn('[getSolPrice] Binance failed:', error);
-  }
+    return null;
+  }, 'Binance');
+  
+  if (binancePrice !== null) return binancePrice;
   
   // Return stale cache if available
   if (solPriceCache) {
@@ -140,6 +143,21 @@ async function fetchSolPriceFromApi(): Promise<number | null> {
   }
   
   return null;
+}
+
+/**
+ * Wrapper to ensure fetch never throws - returns null on any error
+ */
+async function fetchWithFallback<T>(
+  fetchFn: () => Promise<T | null>,
+  sourceName: string
+): Promise<T | null> {
+  try {
+    return await fetchFn();
+  } catch (error) {
+    console.warn(`[getSolPrice] ${sourceName} failed:`, error);
+    return null;
+  }
 }
 
 /**

@@ -15,8 +15,23 @@ interface PriceSource {
   price: number;
 }
 
-async function fetchFromCoinGecko(): Promise<number | null> {
+/**
+ * Wrapper to ensure fetch never throws - returns null on any error
+ */
+async function fetchWithFallback<T>(
+  fetchFn: () => Promise<T | null>,
+  sourceName: string
+): Promise<T | null> {
   try {
+    return await fetchFn();
+  } catch (err) {
+    console.warn(`[SOL Price Cron] ${sourceName} failed:`, (err as Error).message);
+    return null;
+  }
+}
+
+async function fetchFromCoinGecko(): Promise<number | null> {
+  return fetchWithFallback(async () => {
     console.log('[CRON] Fetching CoinGecko...');
     const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd', {
       signal: AbortSignal.timeout(5000)
@@ -36,41 +51,11 @@ async function fetchFromCoinGecko(): Promise<number | null> {
       return price;
     }
     return null;
-  } catch (err) {
-    console.warn('[SOL Price Cron] CoinGecko failed:', (err as Error).message);
-    return null;
-  }
-}
-
-async function fetchFromJupiter(): Promise<number | null> {
-  try {
-    console.log('[CRON] Fetching Jupiter...');
-    const res = await fetch('https://price.jup.ag/v6/price?ids=SOL', {
-      signal: AbortSignal.timeout(5000)
-    });
-    console.log(`[CRON] Jupiter status: ${res.status}`);
-    
-    if (!res.ok) {
-      console.warn(`[SOL Price Cron] Jupiter returned ${res.status}`);
-      return null;
-    }
-    
-    const data = await res.json();
-    const price = data.data?.SOL?.price;
-    
-    if (typeof price === 'number' && price > 0) {
-      console.log(`[SOL Price Cron] Jupiter: $${price.toFixed(2)}`);
-      return price;
-    }
-    return null;
-  } catch (err) {
-    console.warn('[SOL Price Cron] Jupiter failed:', (err as Error).message);
-    return null;
-  }
+  }, 'CoinGecko');
 }
 
 async function fetchFromBinance(): Promise<number | null> {
-  try {
+  return fetchWithFallback(async () => {
     console.log('[CRON] Fetching Binance...');
     const res = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT', {
       signal: AbortSignal.timeout(5000)
@@ -90,10 +75,7 @@ async function fetchFromBinance(): Promise<number | null> {
       return price;
     }
     return null;
-  } catch (err) {
-    console.warn('[SOL Price Cron] Binance failed:', (err as Error).message);
-    return null;
-  }
+  }, 'Binance');
 }
 
 export async function GET(request: Request) {

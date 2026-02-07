@@ -510,6 +510,8 @@ paths:
       description: |
         Returns candlestick data for charting. This is the recommended source 
         of truth for price display. Use the last candle's `close` for current price.
+        
+        Set `currency=usd` to get USD-denominated candles.
       parameters:
         - name: mint
           in: query
@@ -528,6 +530,13 @@ paths:
             type: integer
             default: 100
             maximum: 1000
+        - name: currency
+          in: query
+          schema:
+            type: string
+            enum: [sol, usd]
+            default: sol
+          description: Currency for OHLCV values (sol or usd)
       responses:
         '200':
           description: Candle data
@@ -540,6 +549,9 @@ paths:
                     type: string
                   interval:
                     type: string
+                  currency:
+                    type: string
+                    enum: [sol, usd]
                   candles:
                     type: array
                     items:
@@ -564,7 +576,7 @@ paths:
     get:
       tags: [Price Data]
       summary: Get on-chain stats
-      description: Returns bonding curve state directly from Solana.
+      description: Returns bonding curve state directly from Solana with USD values.
       parameters:
         - name: mint
           in: query
@@ -573,7 +585,7 @@ paths:
             type: string
       responses:
         '200':
-          description: On-chain stats
+          description: On-chain stats with USD values
           content:
             application/json:
               schema:
@@ -600,8 +612,19 @@ paths:
                         type: number
                       price:
                         type: number
+                        description: Price in SOL
+                      priceUsd:
+                        type: number
+                        description: Price in USD
                       marketCap:
                         type: number
+                        description: Market cap in SOL
+                      marketCapUsd:
+                        type: number
+                        description: Market cap in USD
+                      solPriceUsd:
+                        type: number
+                        description: SOL price at time of request
                       graduated:
                         type: boolean
 
@@ -1154,8 +1177,14 @@ components:
           type: string
         price_sol:
           type: number
+        price_usd:
+          type: number
+          description: Price in USD
         market_cap_sol:
           type: number
+        market_cap_usd:
+          type: number
+          description: Market cap in USD
         volume_24h:
           type: number
         virtual_sol_reserves:
@@ -1192,8 +1221,15 @@ components:
           type: number
         token_amount:
           type: number
-        price:
+        price_sol:
           type: number
+          description: Price in SOL
+        price_usd:
+          type: number
+          description: Price in USD (calculated from sol_price_usd)
+        sol_price_usd:
+          type: number
+          description: SOL price at time of trade
         trader:
           type: string
         signature:

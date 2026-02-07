@@ -39,7 +39,10 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
   const [circulatingSupply, setCirculatingSupply] = useState<number>(0);
   const [onChainStats, setOnChainStats] = useState<{
     marketCap: number;
+    marketCapUsd?: number;
     price: number;
+    priceUsd?: number;
+    solPriceUsd?: number;
     bondingCurveSol: number;
   } | null>(null);
   const [candlePrice, setCandlePrice] = useState<number>(0);
@@ -154,7 +157,10 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
       if (data.success && data.onChain) {
         setOnChainStats({
           marketCap: data.onChain.marketCap,
+          marketCapUsd: data.onChain.marketCapUsd,
           price: data.onChain.price,
+          priceUsd: data.onChain.priceUsd,
+          solPriceUsd: data.onChain.solPriceUsd,
           bondingCurveSol: data.onChain.bondingCurveSol,
         });
       }
@@ -509,8 +515,8 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
   };
 
   const formatValue = (solAmount: number) => {
-    if (solPrice !== null) {
-      return formatUsd(solAmount * solPrice);
+    if (onChainStats?.solPriceUsd) {
+      return formatUsd(solAmount * onChainStats.solPriceUsd);
     }
     return formatSol(solAmount);
   };
@@ -685,7 +691,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                 height={500}
                 currentPrice={onChainStats?.price ?? 0}
                 marketCapSol={onChainStats?.marketCap ?? 0}
-                marketCapUsd={solPrice && onChainStats?.marketCap ? onChainStats.marketCap * solPrice : null}
+                marketCapUsd={onChainStats?.marketCapUsd ?? null}
                 volume24h={token.volume_24h || 0}
                 solPrice={solPrice}
                 holders={holders.length > 0 ? holders.length : (token.holders || 0)}
@@ -821,11 +827,11 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                     {displayPrice > 0 ? formatPrice(displayPrice) : '--'} SOL
                   </span>
                 </div>
-                {solPrice && displayPrice > 0 && (
+                {onChainStats?.priceUsd && displayPrice > 0 && (
                   <div className="flex justify-between text-sm mt-1">
                     <span className="text-gray-400">USD</span>
                     <span className="text-green-400 font-mono">
-                      ${(displayPrice * solPrice).toFixed(displayPrice * solPrice < 0.01 ? 8 : 4)}
+                      ${onChainStats.priceUsd.toFixed(onChainStats.priceUsd < 0.01 ? 8 : 4)}
                     </span>
                   </div>
                 )}

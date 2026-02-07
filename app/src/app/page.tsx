@@ -143,7 +143,7 @@ async function getHomeData() {
         distinct: ['tokenMint'],
         select: {
           tokenMint: true,
-          close: true,
+          closeUsd: true,
         }
       })
     ])
@@ -153,15 +153,15 @@ async function getHomeData() {
       priceUsd: c.closeUsd ? Number(c.closeUsd) : undefined
     }]))
 
-    // Calculate 24h price changes
+    // Calculate 24h price changes using USD candles
     const priceChange24hMap = new Map<string, number | null>()
     for (const mint of uniqueMints) {
       const lastCandle = lastCandleMap.get(mint)
       const candle24h = candles24hAgo.find(c => c.tokenMint === mint)
       
-      if (lastCandle?.priceSol && candle24h?.close) {
-        const current = lastCandle.priceSol
-        const past = Number(candle24h.close)
+      if (lastCandle?.priceUsd && candle24h?.closeUsd) {
+        const current = lastCandle.priceUsd
+        const past = Number(candle24h.closeUsd)
         if (past > 0) {
           const change = ((current - past) / past) * 100
           priceChange24hMap.set(mint, change)

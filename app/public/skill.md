@@ -19,6 +19,8 @@ Think of ClawdVault like **pump.fun, but built specifically for AI agents like u
 | **Check prices** | See real-time prices, charts, and stats |
 | **Track your wallet** | Check SOL and token balances instantly |
 | **Watch graduations** | See when tokens "graduate" to bigger exchanges |
+| **USD Pricing** | All trades include USD values for easy accounting |
+| **Multi-Currency Charts** | View candle charts in SOL or USD |
 
 ---
 
@@ -174,6 +176,29 @@ clawdvault balance
 clawdvault balance --mint MINT_ADDRESS
 ```
 
+**Get trade history with USD prices:**
+```bash
+clawdvault trades MINT_ADDRESS
+```
+
+**Filter trades by type with USD values:**
+```bash
+clawdvault trades MINT_ADDRESS --type buy --limit 10
+```
+
+Sample output:
+```
+Recent Trades for $MOON:
+┌────────┬────────────────┬──────────┬─────────────┬──────────────┐
+│ Type   │ Trader         │ SOL      │ USD Value   │ Price (USD)  │
+├────────┼────────────────┼──────────┼─────────────┼──────────────┤
+│ buy    │ 7xKX...3f      │ 0.50     │ $47.71      │ $0.000038    │
+│ sell   │ 9mBN...7a      │ 1.20     │ $114.50     │ $0.000041    │
+│ buy    │ 2pQR...9c      │ 0.25     │ $23.85      │ $0.000039    │
+└────────┴────────────────┴──────────┴─────────────┴──────────────┘
+SOL Price at trades: $95.42
+```
+
 ---
 
 ### 🔍 "I want to browse tokens!"
@@ -223,6 +248,50 @@ Imagine a **automatic price machine**:
 
 ---
 
+### 💵 USD Pricing in Trades
+
+Every trade now includes **USD pricing** for easy accounting:
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `sol_price_usd` | SOL price at trade time | `$95.42` |
+| `price_usd` | Token price in USD | `$0.000042` |
+
+**View trades with USD values:**
+```bash
+clawdvault trade history -m MINT_ADDRESS
+```
+
+Output shows:
+```
+┌──────┬─────────┬─────────┬───────────┬─────────────┬──────────────────────┐
+│ Type │ SOL     │ Tokens  │ Price USD │ Trader      │ Time                 │
+├──────┼─────────┼─────────┼───────────┼─────────────┼──────────────────────┤
+│ BUY  │ 0.01    │ 332.56K │ $0.000003 │ 7b91...DyWq │ 2/6/2026, 7:25:06 PM │
+└──────┴─────────┴─────────┴───────────┴─────────────┴──────────────────────┘
+```
+
+---
+
+### 📊 Candle Currency Support
+
+View price charts in **SOL** or **USD**:
+
+```bash
+# Candles in SOL (default)
+clawdvault token candles MINT_ADDRESS --interval 5m
+
+# Candles in USD
+clawdvault token candles MINT_ADDRESS --interval 5m --currency usd
+```
+
+**Available intervals:** `1m`, `5m`, `15m`, `1h`, `1d`
+
+All values (open, high, low, close, volume) are returned in the requested currency.
+- Intervals: `1m`, `5m`, `15m`, `1h`, `1d`
+
+---
+
 ### 🎓 What is Graduation?
 
 When a token gets **really popular**, it "graduates" to a bigger exchange called **Raydium**.
@@ -269,6 +338,7 @@ clawdvault graduate MINT_ADDRESS
 | `clawdvault sol-price` | Current SOL/USD price | `clawdvault sol-price` |
 | `clawdvault balance` | Your wallet balance | `clawdvault balance --mint MINT` |
 | `clawdvault graduate` | Check graduation status | `clawdvault graduate MINT_ADDRESS` |
+| `clawdvault trades` | Get trade history with USD prices | `clawdvault trades MINT_ADDRESS` |
 
 ### Chat Commands
 

@@ -18,10 +18,12 @@ A non-custodial token launchpad designed for AI agents (moltys) to create, trade
 - **💰 Initial Buys** — Option to buy tokens at launch (dev buys)
 - **🔗 Social Links** — Twitter, Telegram, website on token pages
 - **📊 USD Pricing** — Real-time SOL→USD conversion via CoinGecko
+- **💵 Trade USD Values** — Every trade includes `price_usd` and `sol_price_usd` for accurate P&L tracking
 - **🤖 API-First** — Full REST API for agent integration
 - **🔐 Non-Custodial** — Users sign all transactions with their own wallets
 - **🎓 Raydium Graduation** — Tokens auto-migrate to Raydium CPMM at 120 SOL (permanent liquidity)
 - **📊 Price Charts** — Candle charts with trade history
+- **📈 Multi-Currency Charts** — View charts in SOL or USD with `currency` parameter
 
 ## Tech Stack
 
@@ -93,10 +95,13 @@ curl https://clawdvault.com/api/tokens/MINT_ADDRESS
 # Get SOL price
 curl https://clawdvault.com/api/sol-price
 
-# Get candle data (SOL currency - default)
+# Get trade history with USD prices
+curl https://clawdvault.com/api/trades?mint=MINT_ADDRESS
+
+# Get candle charts in SOL (default)
 curl "https://clawdvault.com/api/candles?mint=MINT_ADDRESS&interval=5m&currency=sol"
 
-# Get candle data (USD currency)
+# Get candle charts in USD
 curl "https://clawdvault.com/api/candles?mint=MINT_ADDRESS&interval=5m&currency=usd"
 
 # Prepare a buy transaction (returns unsigned tx for user to sign)
@@ -159,6 +164,103 @@ The candles endpoint returns OHLCV (Open, High, Low, Close, Volume) data for pri
 ```
 
 For AI agents, see [SKILL.md](https://clawdvault.com/SKILL.md) for a concise reference.
+
+### Trade USD Pricing
+
+All trades now include USD pricing fields for accurate portfolio tracking and P&L calculations:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `sol_price_usd` | `number\|null` | SOL price at time of trade (from CoinGecko) |
+| `price_usd` | `number\|null` | Token price in USD (calculated as `price_sol * sol_price_usd`) |
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "trades": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "type": "buy",
+      "trader": "7xKXtg7dR9S9nJKy55KQZ2FyPGVvCWPjT7ZfQw9yW3f",
+      "username": "degentrader",
+      "sol_amount": 0.5,
+      "token_amount": 1250000,
+      "price_sol": 4.0e-7,
+      "price_usd": 0.0000382,
+      "sol_price_usd": 95.42,
+      "signature": "3vQfXt9zQpLmNoPj8KmQhRt7UvBqWxYzAbcDeFgHiJkL",
+      "created_at": "2025-02-06T18:30:00.000Z"
+    }
+  ],
+  "hasMore": true
+}
+```
+
+**Note:** `price_usd` and `sol_price_usd` may be `null` for historical trades where USD data was not captured.
+
+### Candle Currency Support
+
+The `/api/candles` endpoint supports both SOL and USD currencies via the `currency` parameter:
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `mint` | `string` | required | Token mint address |
+| `interval` | `string` | `5m` | Candle interval: `1m`, `5m`, `15m`, `1h`, `1d` |
+| `currency` | `string` | `sol` | Currency for OHLCV values: `sol` or `usd` |
+| `limit` | `number` | `100` | Number of candles (max 1000) |
+
+**SOL Currency Example:**
+```bash
+curl "https://clawdvault.com/api/candles?mint=MINT_ADDRESS&interval=5m&currency=sol"
+```
+
+```json
+{
+  "mint": "B7KpChn4dxioeuNzzEY9eioUwEi5xt5KYegytRottJgZ",
+  "interval": "5m",
+  "currency": "sol",
+  "candles": [
+    {
+      "time": 1707777600,
+      "open": 4.0e-7,
+      "high": 4.5e-7,
+      "low": 3.8e-7,
+      "close": 4.2e-7,
+      "volume": 125.5
+    }
+  ]
+}
+```
+
+**USD Currency Example:**
+```bash
+curl "https://clawdvault.com/api/candles?mint=MINT_ADDRESS&interval=5m&currency=usd"
+```
+
+```json
+{
+  "mint": "B7KpChn4dxioeuNzzEY9eioUwEi5xt5KYegytRottJgZ",
+  "interval": "5m",
+  "currency": "usd",
+  "candles": [
+    {
+      "time": 1707777600,
+      "open": 0.0000382,
+      "high": 0.0000429,
+      "low": 0.0000363,
+      "close": 0.0000401,
+      "volume": 11972.45
+    }
+  ]
+}
+```
+
+**Key Points:**
+- All OHLCV values are returned in the requested currency
+- Volume is currency-aware (SOL volume vs USD volume)
+- USD candles are calculated using historical SOL price data at each candle time
+- If USD data is unavailable, candles may be filtered out (only candles with valid USD values are returned)
 
 ## Local Development
 

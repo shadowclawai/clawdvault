@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { createChart, IChartApi, ISeriesApi, LineData, CandlestickData, ColorType, CandlestickSeries, LineSeries } from 'lightweight-charts';
-import { subscribeToCandles, unsubscribeChannel } from '@/lib/supabase-client';
+import { subscribeToCandles, subscribeToSolPrice, unsubscribeChannel } from '@/lib/supabase-client';
 
 interface Candle {
   time: number;
@@ -178,15 +178,17 @@ export default function PriceChart({
       fetch24hCandles();
     });
 
-    // Polling disabled for now - testing realtime only
-    // const refreshInterval = window.setInterval(() => {
-    //   fetchCandles();
-    //   fetch24hCandles();
-    // }, 30000);
+    // Subscribe to SOL price updates - refetch candles when SOL price changes
+    // This updates the USD close price dynamically
+    const solPriceChannel = subscribeToSolPrice(() => {
+      console.log('[PriceChart] SOL price update received, refetching candles...');
+      fetchCandles();
+      fetch24hCandles();
+    });
 
     return () => {
-      // window.clearInterval(refreshInterval);
       unsubscribeChannel(candleChannel);
+      unsubscribeChannel(solPriceChannel);
     };
   }, [mint, timeInterval, fetchCandles, fetch24hCandles]);
 

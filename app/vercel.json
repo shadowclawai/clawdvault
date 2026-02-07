@@ -8,6 +8,10 @@
   },
   "crons": [
     {
+      "path": "/api/cron/update-sol-price",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/sync-trades",
       "schedule": "* * * * *"
     },

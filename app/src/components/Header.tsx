@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import WalletButton from './WalletButton';
+import SolPriceDisplay from './SolPriceDisplay';
 
 export default function Header() {
   const pathname = usePathname();
@@ -14,8 +15,11 @@ export default function Header() {
           <span className="text-2xl">🦞</span>
           <span className="hidden min-[420px]:inline text-lg sm:text-xl font-bold text-white">ClawdVault</span>
         </Link>
-        
+
         <nav className="flex items-center gap-3 sm:gap-6">
+          {/* Live SOL Price */}
+          <SolPriceDisplay className="hidden sm:flex" />
+          
           <Link 
             href="/create" 
             className={`text-sm sm:text-base whitespace-nowrap transition ${

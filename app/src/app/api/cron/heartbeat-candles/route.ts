@@ -4,8 +4,14 @@ import { getSolPrice } from '@/lib/sol-price';
 
 export const dynamic = 'force-dynamic';
 
-// Generate heartbeat candles for tokens with no recent trades
-// This ensures USD charts reflect current SOL price even without trading activity
+/**
+ * Generate heartbeat candles for tokens with no recent trades
+ * This ensures USD charts reflect current SOL price even without trading activity
+ * 
+ * Note: This cron is now complementary to update-sol-price cron:
+ * - update-sol-price: Updates closeUsd of EXISTING candles when SOL price changes
+ * - heartbeat-candles: Creates NEW candles when no trades exist for the current bucket
+ */
 export async function GET(request: Request) {
   try {
     // Verify cron secret
@@ -14,7 +20,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get current SOL price
+    // Get current SOL price from database (primary) or API (fallback)
     const solPriceUsd = await getSolPrice();
     if (!solPriceUsd) {
       throw new Error('Failed to fetch SOL price');

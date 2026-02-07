@@ -1,28 +1,100 @@
 // SOL price utilities for trade and candle USD calculations
+// Uses database-stored price with API fallback
 
-// Cache for SOL price (shared across functions)
+import { db } from './prisma';
+
+// In-memory cache for quick access
 interface SolPriceCache {
   price: number;
   timestamp: number;
+  source: string;
 }
 
 let solPriceCache: SolPriceCache | null = null;
-const CACHE_DURATION_MS = 60 * 1000; // 1 minute cache
+const CACHE_DURATION_MS = 30 * 1000; // 30 second cache
 
 /**
- * Fetch current SOL/USD price
- * Uses CoinGecko with Jupiter fallback
+ * Get current SOL/USD price from database (with caching)
+ * Falls back to API if database price is stale or unavailable
  */
 export async function getSolPrice(): Promise<number | null> {
   const now = Date.now();
   
-  // Check cache first
+  // Check memory cache first
   if (solPriceCache && (now - solPriceCache.timestamp) < CACHE_DURATION_MS) {
     return solPriceCache.price;
   }
   
   try {
-    // Try CoinGecko first
+    // Try database first
+    const dbPrice = await db().solPrice.findUnique({
+      where: { id: 'current' }
+    });
+    
+    if (dbPrice) {
+      const price = Number(dbPrice.price);
+      const updatedAt = new Date(dbPrice.updatedAt).getTime();
+      const age = now - updatedAt;
+      
+      // Use database price if it's less than 2 minutes old
+      if (age < 2 * 60 * 1000 && price > 0) {
+        solPriceCache = { price, timestamp: now, source: dbPrice.source };
+        return price;
+      }
+      
+      // Database price is stale, try to update it
+      console.warn(`[getSolPrice] Database price is ${Math.floor(age / 1000)}s old, fetching fresh...`);
+    }
+  } catch (error) {
+    console.warn('[getSolPrice] Database fetch failed:', error);
+  }
+  
+  // Fallback to API
+  return await fetchSolPriceFromApi();
+}
+
+/**
+ * Get SOL price and metadata (source, timestamp)
+ */
+export async function getSolPriceWithMeta(): Promise<{ price: number; source: string; updatedAt: Date } | null> {
+  try {
+    const dbPrice = await db().solPrice.findUnique({
+      where: { id: 'current' }
+    });
+    
+    if (dbPrice && Number(dbPrice.price) > 0) {
+      return {
+        price: Number(dbPrice.price),
+        source: dbPrice.source,
+        updatedAt: dbPrice.updatedAt,
+      };
+    }
+  } catch (error) {
+    console.warn('[getSolPriceWithMeta] Database fetch failed:', error);
+  }
+  
+  // Fallback to API
+  const price = await fetchSolPriceFromApi();
+  if (price) {
+    return {
+      price,
+      source: 'api-fallback',
+      updatedAt: new Date(),
+    };
+  }
+  
+  return null;
+}
+
+/**
+ * Fetch SOL price directly from APIs
+ * Uses CoinGecko first, then Jupiter, then Binance
+ */
+async function fetchSolPriceFromApi(): Promise<number | null> {
+  const now = Date.now();
+  
+  // Try CoinGecko first
+  try {
     const response = await fetch(
       'https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd',
       { signal: AbortSignal.timeout(5000) }
@@ -32,8 +104,8 @@ export async function getSolPrice(): Promise<number | null> {
       const data = await response.json();
       const price = data.solana?.usd;
       
-      if (price) {
-        solPriceCache = { price, timestamp: now };
+      if (typeof price === 'number' && price > 0) {
+        solPriceCache = { price, timestamp: now, source: 'coingecko' };
         return price;
       }
     }
@@ -52,13 +124,33 @@ export async function getSolPrice(): Promise<number | null> {
       const data = await response.json();
       const price = data.data?.SOL?.price;
       
-      if (price) {
-        solPriceCache = { price, timestamp: now };
+      if (typeof price === 'number' && price > 0) {
+        solPriceCache = { price, timestamp: now, source: 'jupiter' };
         return price;
       }
     }
   } catch (error) {
     console.warn('[getSolPrice] Jupiter failed:', error);
+  }
+  
+  // Fallback to Binance
+  try {
+    const response = await fetch(
+      'https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT',
+      { signal: AbortSignal.timeout(5000) }
+    );
+    
+    if (response.ok) {
+      const data = await response.json();
+      const price = parseFloat(data.price);
+      
+      if (!isNaN(price) && price > 0) {
+        solPriceCache = { price, timestamp: now, source: 'binance' };
+        return price;
+      }
+    }
+  } catch (error) {
+    console.warn('[getSolPrice] Binance failed:', error);
   }
   
   // Return stale cache if available
@@ -68,6 +160,27 @@ export async function getSolPrice(): Promise<number | null> {
   }
   
   return null;
+}
+
+/**
+ * Update SOL price in database (used by cron job)
+ */
+export async function updateSolPriceInDb(price: number, source: string): Promise<void> {
+  await db().solPrice.upsert({
+    where: { id: 'current' },
+    create: {
+      id: 'current',
+      price,
+      source,
+    },
+    update: {
+      price,
+      source,
+    },
+  });
+  
+  // Update cache
+  solPriceCache = { price, timestamp: Date.now(), source };
 }
 
 /**

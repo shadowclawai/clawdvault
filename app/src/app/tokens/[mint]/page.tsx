@@ -11,10 +11,12 @@ import ExplorerLink from '@/components/ExplorerLink';
 import { useWallet } from '@/contexts/WalletContext';
 import { fetchBalanceClient } from '@/lib/solana-client';
 import { subscribeToTokenStats, unsubscribeChannel } from '@/lib/supabase-client';
+import { useSolPrice } from '@/hooks/useSolPrice';
 
 export default function TokenPage({ params }: { params: Promise<{ mint: string }> }) {
   const { mint } = use(params);
   const { connected, publicKey, balance: solBalance, connect, signTransaction, refreshBalance } = useWallet();
+  const { price: liveSolPrice } = useSolPrice({ fetchOnMount: true, realtime: true });
   const [anchorAvailable, setAnchorAvailable] = useState<boolean | null>(null);
   
   const [token, setToken] = useState<Token | null>(null);
@@ -176,6 +178,13 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
         .catch(() => {});
     }
   }, [token?.creator]);
+
+  // Sync live SOL price with local state
+  useEffect(() => {
+    if (liveSolPrice !== null) {
+      setSolPrice(liveSolPrice);
+    }
+  }, [liveSolPrice]);
 
   const fetchOnChainStats = async () => {
     try {

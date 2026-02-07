@@ -285,9 +285,9 @@ export function subscribeToCandles(
   onUpdate: () => void
 ): RealtimeChannel {
   const client = getSupabaseClient();
-  
+
   console.log('[Realtime] Subscribing to candles for:', mint);
-  
+
   // Subscribe without filter - filter in callback instead (more reliable with local Supabase)
   const channel = client
     .channel(`candles:${mint}`)
@@ -310,6 +310,44 @@ export function subscribeToCandles(
     .subscribe((status) => {
       console.log('[Realtime] Candles subscription status:', status);
     });
-  
+
+  return channel;
+}
+
+// SOL Price type for realtime updates
+export interface SolPriceUpdate {
+  id: string;
+  price: number;
+  source: string;
+  updated_at: string;
+}
+
+// Subscribe to SOL price updates
+export function subscribeToSolPrice(
+  onUpdate: (price: SolPriceUpdate) => void
+): RealtimeChannel {
+  const client = getSupabaseClient();
+
+  console.log('[Realtime] Subscribing to SOL price updates');
+
+  const channel = client
+    .channel('sol-price')
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'sol_price',
+      },
+      (payload) => {
+        const record = payload.new as SolPriceUpdate;
+        console.log('[Realtime] SOL price update:', record);
+        onUpdate(record);
+      }
+    )
+    .subscribe((status) => {
+      console.log('[Realtime] SOL price subscription status:', status);
+    });
+
   return channel;
 }

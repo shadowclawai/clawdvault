@@ -233,6 +233,16 @@ model ChatReaction {
   @@map("chat_reactions")
 }
 
+// SOL Price for real-time streaming
+model SolPrice {
+  id        String   @id @default("current")
+  price     Decimal  @db.Decimal(20, 6)
+  source    String   // 'coingecko' or 'jupiter'
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("sol_price")
+}
+
 // Price candles for charts (OHLCV)
 model PriceCandle {
   id        String   @id @default(uuid())

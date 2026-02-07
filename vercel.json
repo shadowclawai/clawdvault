@@ -2,11 +2,5 @@
   "framework": "nextjs",
   "git": {
     "deploymentEnabled": false
-  },
-  "crons": [
-    {
-      "path": "/api/cron/heartbeat-candles",
-      "schedule": "*/5 * * * *"
-    }
-  ]
+  }
 }

@@ -19,6 +19,10 @@
     {
       "path": "/api/cron/moltx-promo",
       "schedule": "15,45 * * * *"
+    },
+    {
+      "path": "/api/cron/heartbeat-candles",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

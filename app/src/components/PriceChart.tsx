@@ -22,7 +22,6 @@ interface PriceChartProps {
   marketCapSol?: number;
   marketCapUsd?: number | null;
   volume24h?: number;
-  solPrice?: number | null;
   holders?: number;
   // Callback when candle price updates (source of truth)
   onPriceUpdate?: (price: number) => void;
@@ -41,7 +40,6 @@ export default function PriceChart({
   marketCapSol = 0,
   marketCapUsd = null,
   volume24h = 0,
-  solPrice = null,
   holders = 0,
   onPriceUpdate,
 }: PriceChartProps) {
@@ -302,7 +300,7 @@ export default function PriceChart({
     } else {
       chartRef.current.timeScale().fitContent();
     }
-  }, [candles, chartType, height, totalSupply, priceChange24h, solPrice]);
+  }, [candles, chartType, height, totalSupply, priceChange24h]);
 
   // Separate resize handling effect - only depends on chart existence
   useEffect(() => {

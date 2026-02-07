@@ -84,10 +84,10 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // Return in chronological order (oldest first)
+    // Return in reverse chronological order (newest first) for bottom-up chat display
     return NextResponse.json({
       success: true,
-      messages: enrichedMessages.reverse(),
+      messages: enrichedMessages,
       hasMore: messages.length === limit,
     });
   } catch (error) {

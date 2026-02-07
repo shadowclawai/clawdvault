@@ -81,7 +81,6 @@ export default function ChatAndTrades({ mint, tokenSymbol, trades, onTradesUpdat
   const [editingUsername, setEditingUsername] = useState(false);
   const [newUsername, setNewUsername] = useState('');
   const [savingUsername, setSavingUsername] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const tradesContainerRef = useRef<HTMLDivElement>(null);
 
@@ -178,33 +177,7 @@ export default function ChatAndTrades({ mint, tokenSymbol, trades, onTradesUpdat
     }
   }, [connected, publicKey, fetchProfile]);
 
-  // Scroll handling for chat
-  const initialLoadDone = useRef(false);
-  const prevMessageCount = useRef(0);
-  const userHasInteracted = useRef(false);
-  
-  const handleChatInteraction = useCallback(() => {
-    userHasInteracted.current = true;
-  }, []);
-  
-  useEffect(() => {
-    if (!initialLoadDone.current) {
-      if (!loading) {
-        initialLoadDone.current = true;
-        prevMessageCount.current = messages.length;
-      }
-      return;
-    }
-    
-    if (userHasInteracted.current && messages.length > prevMessageCount.current && chatContainerRef.current) {
-      requestAnimationFrame(() => {
-        if (chatContainerRef.current) {
-          chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-        }
-      });
-    }
-    prevMessageCount.current = messages.length;
-  }, [messages, loading]);
+  // Chat scroll is handled by flex-direction: column-reverse - no auto-scroll needed
 
   // Save username
   const saveUsername = async () => {
@@ -322,8 +295,6 @@ export default function ChatAndTrades({ mint, tokenSymbol, trades, onTradesUpdat
     e.preventDefault();
     if (!newMessage.trim() || sending || !publicKey) return;
 
-    userHasInteracted.current = true;
-    
     setSending(true);
     setError('');
 
@@ -433,7 +404,7 @@ export default function ChatAndTrades({ mint, tokenSymbol, trades, onTradesUpdat
         <>
           <div 
             ref={chatContainerRef}
-            className="flex-1 min-h-0 overflow-y-auto dark-scrollbar"
+            className="flex-1 min-h-0 overflow-y-auto dark-scrollbar flex flex-col-reverse"
           >
             {loading ? (
               <div className="flex items-center justify-center py-20 text-gray-500">
@@ -446,9 +417,8 @@ export default function ChatAndTrades({ mint, tokenSymbol, trades, onTradesUpdat
                 <div className="text-sm">{connected ? 'Be the first to chat!' : 'Connect wallet to chat'}</div>
               </div>
             ) : (
-              <div className="p-4 space-y-3">
-              {messages.map((msg) => (
-                <div key={msg.id} className="group">
+              messages.map((msg) => (
+                <div key={msg.id} className="group px-4 py-1.5 first:pt-4 last:pb-4">
                   <div className="flex items-start gap-2">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-baseline gap-2 flex-wrap">
@@ -523,9 +493,7 @@ export default function ChatAndTrades({ mint, tokenSymbol, trades, onTradesUpdat
                     </div>
                   </div>
                 </div>
-              ))}
-              <div ref={messagesEndRef} />
-              </div>
+              ))
             )}
           </div>
 

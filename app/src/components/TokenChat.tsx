@@ -61,7 +61,6 @@ export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
   const [editingUsername, setEditingUsername] = useState(false);
   const [newUsername, setNewUsername] = useState('');
   const [savingUsername, setSavingUsername] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Fetch messages
@@ -109,38 +108,7 @@ export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
     }
   }, [connected, publicKey, fetchProfile]);
 
-  // Scroll to bottom on new messages (within chat container only, not the whole page)
-  const initialLoadDone = useRef(false);
-  const prevMessageCount = useRef(0);
-  const userHasInteracted = useRef(false);
-  
-  // Track user interaction with chat
-  const handleChatInteraction = useCallback(() => {
-    userHasInteracted.current = true;
-  }, []);
-  
-  useEffect(() => {
-    // Never auto-scroll on initial page load - prevents mobile jumping to chat
-    if (!initialLoadDone.current) {
-      if (!loading) {
-        initialLoadDone.current = true;
-        prevMessageCount.current = messages.length;
-        // DON'T scroll on initial load - let user scroll naturally
-      }
-      return;
-    }
-    
-    // Only auto-scroll if user has interacted with chat (sent a message)
-    if (userHasInteracted.current && messages.length > prevMessageCount.current && chatContainerRef.current) {
-      // Use requestAnimationFrame for smoother scroll that doesn't affect page position
-      requestAnimationFrame(() => {
-        if (chatContainerRef.current) {
-          chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-        }
-      });
-    }
-    prevMessageCount.current = messages.length;
-  }, [messages, loading]);
+  // Chat scroll is handled by flex-direction: column-reverse - no auto-scroll needed
 
   // Save username
   const saveUsername = async () => {
@@ -265,9 +233,6 @@ export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
     e.preventDefault();
     if (!newMessage.trim() || sending || !publicKey) return;
 
-    // Mark that user has interacted - enables auto-scroll for new messages
-    userHasInteracted.current = true;
-    
     setSending(true);
     setError('');
 
@@ -354,7 +319,7 @@ export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
       {/* Messages */}
       <div 
         ref={chatContainerRef}
-        className="flex-1 overflow-y-auto p-4 space-y-3"
+        className="flex-1 overflow-y-auto dark-scrollbar flex flex-col-reverse"
       >
         {loading ? (
           <div className="flex items-center justify-center h-full text-gray-500">
@@ -368,7 +333,7 @@ export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
           </div>
         ) : (
           messages.map((msg) => (
-            <div key={msg.id} className="group">
+            <div key={msg.id} className="group px-4 py-1.5 first:pt-4 last:pb-4">
               <div className="flex items-start gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-baseline gap-2 flex-wrap">
@@ -448,7 +413,6 @@ export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
             </div>
           ))
         )}
-        <div ref={messagesEndRef} />
       </div>
 
       {/* Input */}

@@ -59,6 +59,10 @@ tags:
     description: Token chat rooms
   - name: Users
     description: Profiles and authentication
+  - name: RPC
+    description: Solana RPC proxy
+  - name: Wallet
+    description: Wallet balances and utilities
 
 paths:
   /token/prepare-create:
@@ -555,22 +559,7 @@ paths:
                   candles:
                     type: array
                     items:
-                      type: object
-                      properties:
-                        time:
-                          type: integer
-                          description: Unix timestamp (seconds)
-                        open:
-                          type: number
-                        high:
-                          type: number
-                        low:
-                          type: number
-                        close:
-                          type: number
-                        volume:
-                          type: number
-                          description: Volume in SOL
+                      $ref: '#/components/schemas/PriceCandle'
 
   /stats:
     get:
@@ -1143,6 +1132,150 @@ paths:
                   configInitialized:
                     type: boolean
 
+  /rpc:
+    get:
+      tags: [RPC]
+      summary: RPC proxy health check
+      description: Returns status of the RPC proxy endpoint.
+      responses:
+        '200':
+          description: Proxy is running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+                  message:
+                    type: string
+                    example: "RPC Proxy is running. Use POST for RPC requests."
+    post:
+      tags: [RPC]
+      summary: Solana RPC proxy
+      description: |
+        Proxies Solana JSON-RPC requests to Helius with server-side API key.
+        Supports standard Solana RPC methods with rate limiting (100 req/min).
+        
+        **Allowed Methods:** getBalance, getTokenBalance, getTokenAccountsByOwner, 
+        getAccountInfo, getTokenAccountBalance, getLatestBlockhash, sendTransaction, 
+        getTransaction, simulateTransaction, and more.
+        
+        **Request Format:** Standard Solana JSON-RPC 2.0
+        **Response Format:** Standard Solana JSON-RPC 2.0
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/SolanaRpcRequest'
+                - type: array
+                  items:
+                    $ref: '#/components/schemas/SolanaRpcRequest'
+                  maxItems: 10
+                  description: Batch requests (max 10)
+      responses:
+        '200':
+          description: RPC response
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SolanaRpcResponse'
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/SolanaRpcResponse'
+                    description: Batch response
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SolanaRpcError'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SolanaRpcError'
+        '502':
+          description: Upstream RPC error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SolanaRpcError'
+        '504':
+          description: Request timeout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SolanaRpcError'
+
+  /wallet/balances:
+    get:
+      tags: [Wallet]
+      summary: Get wallet token balances
+      description: |
+        Fetches all SPL token balances for a wallet. Returns a map of mint addresses 
+        to token balances. Only includes non-zero balances.
+      parameters:
+        - name: wallet
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Wallet address to fetch balances for
+      responses:
+        '200':
+          description: Token balances
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  wallet:
+                    type: string
+                    description: Wallet address
+                  balances:
+                    type: object
+                    description: Map of mint address to token balance
+                    additionalProperties:
+                      type: number
+                    example:
+                      "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": 100.5
+                      "So11111111111111111111111111111111111111112": 2.5
+                  count:
+                    type: integer
+                    description: Number of tokens with non-zero balance
+        '400':
+          description: Missing wallet parameter
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  error:
+                    type: string
+        '503':
+          description: RPC error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  error:
+                    type: string
+                  message:
+                    type: string
+
 components:
   securitySchemes:
     BearerAuth:
@@ -1226,12 +1359,18 @@ components:
           description: Price in SOL
         price_usd:
           type: number
+          nullable: true
           description: Price in USD (calculated from sol_price_usd)
         sol_price_usd:
           type: number
+          nullable: true
           description: SOL price at time of trade
         trader:
           type: string
+        username:
+          type: string
+          nullable: true
+          description: Trader's username if profile exists
         signature:
           type: string
         created_at:
@@ -1273,3 +1412,106 @@ components:
         created_at:
           type: string
           format: date-time
+
+    PriceCandle:
+      type: object
+      properties:
+        time:
+          type: integer
+          description: Unix timestamp (seconds)
+        open:
+          type: number
+          description: Opening price in SOL
+        high:
+          type: number
+          description: Highest price in SOL
+        low:
+          type: number
+          description: Lowest price in SOL
+        close:
+          type: number
+          description: Closing price in SOL
+        volume:
+          type: number
+          description: Volume in SOL
+        openUsd:
+          type: number
+          nullable: true
+          description: Opening price in USD
+        highUsd:
+          type: number
+          nullable: true
+          description: Highest price in USD
+        lowUsd:
+          type: number
+          nullable: true
+          description: Lowest price in USD
+        closeUsd:
+          type: number
+          nullable: true
+          description: Closing price in USD
+        volumeUsd:
+          type: number
+          nullable: true
+          description: Volume in USD
+
+    SolanaRpcRequest:
+      type: object
+      required:
+        - jsonrpc
+        - method
+        - id
+      properties:
+        jsonrpc:
+          type: string
+          enum: ['2.0']
+          description: JSON-RPC version
+        method:
+          type: string
+          description: RPC method name
+          example: 'getBalance'
+        params:
+          type: array
+          description: Method parameters
+          items:
+            type: object
+        id:
+          type: [string, integer]
+          description: Request identifier
+          example: 1
+
+    SolanaRpcResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          enum: ['2.0']
+        result:
+          type: object
+          description: Method result
+        error:
+          $ref: '#/components/schemas/SolanaRpcErrorObject'
+        id:
+          type: [string, integer]
+
+    SolanaRpcError:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          enum: ['2.0']
+        error:
+          $ref: '#/components/schemas/SolanaRpcErrorObject'
+        id:
+          type: [string, integer]
+          nullable: true
+
+    SolanaRpcErrorObject:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message

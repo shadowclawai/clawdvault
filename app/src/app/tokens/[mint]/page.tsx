@@ -246,11 +246,26 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
       const now = new Date();
       const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-      // Fetch candle from ~24h ago only
-      const agoRes = await fetch(`/api/candles?mint=${mint}&interval=1m&currency=usd&to=${oneDayAgo.toISOString()}&limit=1`);
+      // Fetch candles from last 25 hours to find one closest to 24h ago
+      const agoRes = await fetch(`/api/candles?mint=${mint}&interval=1m&limit=1500&currency=usd`);
       const agoData = await agoRes.json();
+      console.log('[TokenPage] Fetched candles for 24h calc:', agoData.candles?.length);
       if (agoData.candles?.length > 0) {
-        setCandle24hAgo({ closeUsd: agoData.candles[0].close });
+        // Find candle closest to 24h ago (by time)
+        const targetTime = oneDayAgo.getTime() / 1000; // Convert to seconds
+        let closestCandle = agoData.candles[0];
+        let closestDiff = Math.abs(closestCandle.time - targetTime);
+
+        for (const candle of agoData.candles) {
+          const diff = Math.abs(candle.time - targetTime);
+          if (diff < closestDiff) {
+            closestDiff = diff;
+            closestCandle = candle;
+          }
+        }
+
+        console.log('[TokenPage] 24h ago candle found:', { closeUsd: closestCandle.close, time: new Date(closestCandle.time * 1000) });
+        setCandle24hAgo({ closeUsd: closestCandle.close });
       }
     } catch (err) {
       console.warn('Failed to fetch 24h ago candle:', err);
@@ -263,10 +278,12 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
       const res = await fetch(`/api/candles?mint=${mint}&interval=1m&limit=1&currency=usd`);
       const data = await res.json();
       if (data.candles?.length > 0) {
+        const candle = data.candles[0];
         setLastCandle({
-          closeUsd: data.candles[0].close,
-          close: data.candles[0].closeSol || data.candles[0].close
+          closeUsd: candle.close,
+          close: candle.closeSol || candle.close
         });
+        console.log('[TokenPage] Latest candle fetched:', { closeUsd: candle.close, close: candle.closeSol || candle.close });
       }
     } catch (err) {
       console.warn('Failed to fetch latest candle:', err);

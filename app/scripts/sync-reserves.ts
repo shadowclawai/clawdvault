@@ -1,9 +1,17 @@
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../generated/prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 
 const PROGRAM_ID = new PublicKey('GUyF2TVe32Cid4iGVt2F6wPYDhLSVmTUZBj2974outYM');
 const TOKEN_DECIMALS = 6;
-const prisma = new PrismaClient();
+// Create connection pool using DIRECT_URL for migrations/scripts
+const pool = new Pool({
+  connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL,
+});
+
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
   const conn = new Connection(process.env.SOLANA_RPC_URL!, 'confirmed');

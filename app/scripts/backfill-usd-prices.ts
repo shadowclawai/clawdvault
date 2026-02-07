@@ -12,9 +12,17 @@
  *   npx ts-node scripts/backfill-usd-prices.ts
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../generated/prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 
-const prisma = new PrismaClient();
+// Create connection pool using DIRECT_URL for migrations/scripts
+const pool = new Pool({
+  connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL,
+});
+
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 // CoinGecko API for historical SOL prices
 const COINGECKO_API = 'https://api.coingecko.com/api/v3';

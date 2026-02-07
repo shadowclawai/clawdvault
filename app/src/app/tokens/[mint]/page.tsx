@@ -10,7 +10,7 @@ import Footer from '@/components/Footer';
 import ExplorerLink from '@/components/ExplorerLink';
 import { useWallet } from '@/contexts/WalletContext';
 import { fetchBalanceClient } from '@/lib/solana-client';
-import { subscribeToTokenStats, unsubscribeChannel } from '@/lib/supabase-client';
+import { subscribeToTokenStats, subscribeToCandles, unsubscribeChannel } from '@/lib/supabase-client';
 import { useSolPrice } from '@/hooks/useSolPrice';
 
 export default function TokenPage({ params }: { params: Promise<{ mint: string }> }) {
@@ -50,7 +50,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
   const [candleMarketCap, setCandleMarketCap] = useState<number>(0);
   const [creatorUsername, setCreatorUsername] = useState<string | null>(null);
   const [candle24hAgo, setCandle24hAgo] = useState<{ closeUsd: number } | null>(null);
-  const [lastCandle, setLastCandle] = useState<{ closeUsd: number } | null>(null);
+  const [lastCandle, setLastCandle] = useState<{ closeUsd: number; close: number } | null>(null);
 
   // Calculate 24h price change from streamed candles (frontend calculation)
   const priceChange24h = useMemo(() => {
@@ -66,14 +66,21 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
   // Candles include heartbeat candles, so they stay updated with current SOL price
   const displayMarketCap = candleMarketCap > 0 ? candleMarketCap : (token?.market_cap_usd ?? onChainStats?.marketCapUsd ?? 0);
 
-  // Current price from last candle (includes heartbeat candles for USD continuity)
+  // Current price from streamed last candle (realtime updates)
   const currentPrice = useMemo(() => {
-    // Use token data from API (last candle) for consistent 24h change calculation
+    // Prefer streamed last candle for realtime updates
+    if (lastCandle) {
+      return {
+        sol: lastCandle.close,
+        usd: lastCandle.closeUsd,
+      };
+    }
+    // Fallback to API data
     return {
       sol: token?.price_sol ?? onChainStats?.price ?? 0,
       usd: token?.price_usd ?? onChainStats?.priceUsd ?? null,
     };
-  }, [token, onChainStats]);
+  }, [lastCandle, token, onChainStats]);
 
   // Fetch token holdings for connected wallet (client-side RPC)
   const fetchTokenBalance = useCallback(async () => {
@@ -148,7 +155,9 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
     fetchSolPrice();
     fetchNetworkMode();
     fetchOnChainStats();
-    
+    fetchLatestCandle(); // Get initial last candle
+    fetch24hAgoCandle(); // Get initial 24h ago candle
+
     // Subscribe to realtime token stats updates
     const tokenChannel = subscribeToTokenStats(mint, (updatedToken) => {
       // Update token state with new reserves/stats
@@ -164,16 +173,23 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
       // Also refresh on-chain stats
       fetchOnChainStats();
     });
-    
+
+    // Subscribe to realtime candle updates for last candle
+    const candleChannel = subscribeToCandles(mint, () => {
+      // Refetch latest candle when new candle is created
+      fetchLatestCandle();
+    });
+
     return () => {
       unsubscribeChannel(tokenChannel);
+      unsubscribeChannel(candleChannel);
     };
   }, [mint]);
 
-  // Poll for 24h change candles every minute
+  // Poll for 24h ago candle every minute (last candle comes from realtime)
   useEffect(() => {
-    fetchCandlesFor24hChange();
-    const interval = setInterval(fetchCandlesFor24hChange, 60 * 1000);
+    fetch24hAgoCandle();
+    const interval = setInterval(fetch24hAgoCandle, 60 * 1000);
     return () => clearInterval(interval);
   }, [mint]);
 
@@ -224,27 +240,36 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
     }
   };
 
-  // Fetch candles for 24h change calculation
-  const fetchCandlesFor24hChange = async () => {
+  // Fetch 24h ago candle for change calculation (last candle comes from realtime)
+  const fetch24hAgoCandle = async () => {
     try {
       const now = new Date();
       const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-      // Fetch last candle
-      const lastRes = await fetch(`/api/candles?mint=${mint}&interval=1m&limit=1&currency=usd`);
-      const lastData = await lastRes.json();
-      if (lastData.candles?.length > 0) {
-        setLastCandle({ closeUsd: lastData.candles[0].close });
-      }
-
-      // Fetch candle from ~24h ago
+      // Fetch candle from ~24h ago only
       const agoRes = await fetch(`/api/candles?mint=${mint}&interval=1m&currency=usd&to=${oneDayAgo.toISOString()}&limit=1`);
       const agoData = await agoRes.json();
       if (agoData.candles?.length > 0) {
         setCandle24hAgo({ closeUsd: agoData.candles[0].close });
       }
     } catch (err) {
-      console.warn('Failed to fetch candles for 24h change:', err);
+      console.warn('Failed to fetch 24h ago candle:', err);
+    }
+  };
+
+  // Fetch latest candle on mount (before realtime kicks in)
+  const fetchLatestCandle = async () => {
+    try {
+      const res = await fetch(`/api/candles?mint=${mint}&interval=1m&limit=1&currency=usd`);
+      const data = await res.json();
+      if (data.candles?.length > 0) {
+        setLastCandle({
+          closeUsd: data.candles[0].close,
+          close: data.candles[0].closeSol || data.candles[0].close
+        });
+      }
+    } catch (err) {
+      console.warn('Failed to fetch latest candle:', err);
     }
   };
 

@@ -70,8 +70,10 @@ async function getHomeData() {
       where: { graduated: true }
     })
 
-    // Get total volume from trades
+    // Get 24h volume from trades
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
     const volumeResult = await db().trade.aggregate({
+      where: { createdAt: { gte: oneDayAgo } },
       _sum: { solAmount: true }
     })
     const totalVolume = Number(volumeResult._sum.solAmount || 0)
@@ -89,7 +91,6 @@ async function getHomeData() {
     })
 
     // Get trending tokens (most volume in last 24h)
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
     const trendingTrades = await db().trade.groupBy({
       by: ['tokenMint'],
       where: { createdAt: { gte: oneDayAgo } },

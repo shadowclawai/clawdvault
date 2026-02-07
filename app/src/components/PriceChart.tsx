@@ -71,19 +71,19 @@ export default function PriceChart({
     return ((lastClose - firstOpen) / firstOpen) * 100;
   }, [candles24h, candles]);
 
-  // Calculate current market cap from last candle close
+  // Calculate current market cap from last candle close (candles are USD price)
   const candleMarketCap = useMemo(() => {
     const candlesToUse = candles.length > 0 ? candles : candles24h;
     if (candlesToUse.length === 0) return null;
     
     const lastClose = candlesToUse[candlesToUse.length - 1].close;
-    const mcapSol = lastClose * totalSupply;
-    const mcapUsd = solPrice ? mcapSol * solPrice : null;
+    // Candles are USD price per token, multiply by supply for market cap
+    const mcapUsd = lastClose * totalSupply;
     
-    return { sol: mcapSol, usd: mcapUsd };
-  }, [candles, candles24h, totalSupply, solPrice]);
+    return { usd: mcapUsd };
+  }, [candles, candles24h, totalSupply]);
 
-  // Calculate ATH and OHLCV from visible candles
+  // Calculate ATH and OHLCV from visible candles (candles are USD price)
   const { athPrice, athTime, ohlcv } = useMemo(() => {
     // Find ATH from all candle highs (use 24h candles for broader view)
     const allCandles = candles24h.length > candles.length ? candles24h : candles;
@@ -144,7 +144,8 @@ export default function PriceChart({
   // Fetch candles function (reusable)
   const fetchCandles = useCallback(async () => {
     try {
-      const res = await fetch(`/api/candles?mint=${mint}&interval=${timeInterval}&limit=200`);
+      // Fetch USD candles directly from API
+      const res = await fetch(`/api/candles?mint=${mint}&interval=${timeInterval}&limit=200&currency=usd`);
       const data = await res.json();
       setCandles(data.candles?.length > 0 ? data.candles : []);
     } catch (err) {
@@ -155,7 +156,8 @@ export default function PriceChart({
 
   const fetch24hCandles = useCallback(async () => {
     try {
-      const res = await fetch(`/api/candles?mint=${mint}&interval=1h&limit=30`);
+      // Fetch USD candles for 24h view
+      const res = await fetch(`/api/candles?mint=${mint}&interval=1h&limit=30&currency=usd`);
       const data = await res.json();
       setCandles24h(data.candles?.length > 0 ? data.candles : []);
     } catch (err) {
@@ -236,9 +238,7 @@ export default function PriceChart({
       chartRef.current.removeSeries(seriesRef.current);
     }
 
-    // Convert to USD if solPrice available, otherwise show SOL market cap
-    const priceMultiplier = totalSupply * (solPrice || 1);
-    
+    // Candles are now in USD from API (no conversion needed)
     if (chartType === 'candle') {
       seriesRef.current = chartRef.current.addCandlestickSeries({
         upColor: '#22c55e',
@@ -256,10 +256,10 @@ export default function PriceChart({
       if (candles.length > 0) {
         const candleData: CandlestickData[] = candles.map(c => ({
           time: c.time as any,
-          open: c.open * priceMultiplier,
-          high: c.high * priceMultiplier,
-          low: c.low * priceMultiplier,
-          close: c.close * priceMultiplier,
+          open: c.open,
+          high: c.high,
+          low: c.low,
+          close: c.close,
         }));
         seriesRef.current.setData(candleData);
       }
@@ -279,7 +279,7 @@ export default function PriceChart({
       if (candles.length > 0) {
         const lineData: LineData[] = candles.map(c => ({
           time: c.time as any,
-          value: c.close * priceMultiplier,
+          value: c.close,
         }));
         seriesRef.current.setData(lineData);
       }
@@ -359,13 +359,10 @@ export default function PriceChart({
     return n.toFixed(2) + ' SOL';
   };
 
-  const formatVolumeUsd = (solAmount: number) => {
-    const usd = solPrice ? solAmount * solPrice : solAmount;
-    const prefix = solPrice ? '$' : '';
-    const suffix = solPrice ? '' : ' SOL';
-    if (usd >= 1000000) return prefix + (usd / 1000000).toFixed(2) + 'M' + suffix;
-    if (usd >= 1000) return prefix + (usd / 1000).toFixed(2) + 'K' + suffix;
-    return prefix + usd.toFixed(2) + suffix;
+  const formatVolumeUsd = (usdAmount: number) => {
+    if (usdAmount >= 1000000) return '$' + (usdAmount / 1000000).toFixed(2) + 'M';
+    if (usdAmount >= 1000) return '$' + (usdAmount / 1000).toFixed(2) + 'K';
+    return '$' + usdAmount.toFixed(2);
   };
 
   return (
@@ -395,7 +392,7 @@ export default function PriceChart({
           <div className="text-right">
             <div className="text-gray-500 text-xs mb-1">ATH</div>
             <div className="text-green-400 font-bold text-xl">
-              {athPrice > 0 && solPrice ? formatMcap(athPrice * totalSupply * solPrice) : '--'}
+              {athPrice > 0 ? formatMcap(athPrice * totalSupply) : '--'}
             </div>
           </div>
         </div>
@@ -414,16 +411,16 @@ export default function PriceChart({
         {ohlcv && (
           <div className="flex items-center gap-4 text-xs mb-4 flex-wrap">
             <span className="text-gray-500">
-              O<span className="text-green-400 ml-1">{formatMcap((ohlcv.open * totalSupply) * (solPrice || 1))}</span>
+              O<span className="text-green-400 ml-1">{formatMcap(ohlcv.open * totalSupply)}</span>
             </span>
             <span className="text-gray-500">
-              H<span className="text-green-400 ml-1">{formatMcap((ohlcv.high * totalSupply) * (solPrice || 1))}</span>
+              H<span className="text-green-400 ml-1">{formatMcap(ohlcv.high * totalSupply)}</span>
             </span>
             <span className="text-gray-500">
-              L<span className="text-green-400 ml-1">{formatMcap((ohlcv.low * totalSupply) * (solPrice || 1))}</span>
+              L<span className="text-green-400 ml-1">{formatMcap(ohlcv.low * totalSupply)}</span>
             </span>
             <span className="text-gray-500">
-              C<span className="text-green-400 ml-1">{formatMcap((ohlcv.close * totalSupply) * (solPrice || 1))}</span>
+              C<span className="text-green-400 ml-1">{formatMcap(ohlcv.close * totalSupply)}</span>
             </span>
             <span className="text-gray-500">
               Vol<span className="text-cyan-400 ml-1">{formatVolumeUsd(ohlcv.volume)}</span>

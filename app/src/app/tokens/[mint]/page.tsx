@@ -52,16 +52,16 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
 
   // Effective market cap: on-chain initially, then candles after first update
   // Candles include heartbeat candles, so they stay updated with current SOL price
-  const displayMarketCap = candleMarketCap > 0 ? candleMarketCap : (onChainStats?.marketCapUsd ?? 0);
+  const displayMarketCap = candleMarketCap > 0 ? candleMarketCap : (token?.market_cap_usd ?? onChainStats?.marketCapUsd ?? 0);
 
   // Current price from last candle (includes heartbeat candles for USD continuity)
   const currentPrice = useMemo(() => {
-    // Return on-chain stats which now come from last candle via API
+    // Use token data from API (last candle) for consistent 24h change calculation
     return {
-      sol: onChainStats?.price ?? 0,
-      usd: onChainStats?.priceUsd ?? null,
+      sol: token?.price_sol ?? onChainStats?.price ?? 0,
+      usd: token?.price_usd ?? onChainStats?.priceUsd ?? null,
     };
-  }, [onChainStats]);
+  }, [token, onChainStats]);
 
   // Fetch token holdings for connected wallet (client-side RPC)
   const fetchTokenBalance = useCallback(async () => {
@@ -726,9 +726,9 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                 key={chartKey}
                 mint={token.mint} 
                 height={500}
-                currentMarketCap={onChainStats?.marketCapUsd ?? 0}
-                marketCapSol={onChainStats?.marketCap ?? 0}
-                marketCapUsd={onChainStats?.marketCapUsd ?? null}
+                currentMarketCap={token?.market_cap_usd ?? onChainStats?.marketCapUsd ?? 0}
+                marketCapSol={token?.market_cap_sol ?? onChainStats?.marketCap ?? 0}
+                marketCapUsd={token?.market_cap_usd ?? onChainStats?.marketCapUsd ?? null}
                 volume24h={token.volume_24h || 0}
                 holders={holders.length > 0 ? holders.length : (token.holders || 0)}
                 onMarketCapUpdate={setCandleMarketCap}

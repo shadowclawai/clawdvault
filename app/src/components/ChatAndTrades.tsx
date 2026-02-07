@@ -637,7 +637,7 @@ export default function ChatAndTrades({ mint, tokenSymbol, trades, onTradesUpdat
                         {trade.type === 'buy' ? 'bought' : 'sold'}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 mt-0.5">
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       <span className="text-white font-mono text-sm font-medium">
                         {formatNumber(trade.token_amount)} {tokenSymbol}
                       </span>
@@ -649,7 +649,17 @@ export default function ChatAndTrades({ mint, tokenSymbol, trades, onTradesUpdat
                       }`}>
                         {(trade.sol_amount || 0).toFixed(4)} SOL
                       </span>
+                      {trade.sol_price_usd && (
+                        <span className="text-gray-400 text-xs">
+                          (${(trade.sol_amount * trade.sol_price_usd).toLocaleString(undefined, { maximumFractionDigits: 2 })})
+                        </span>
+                      )}
                     </div>
+                    {trade.price_usd && (
+                      <div className="text-gray-500 text-xs mt-0.5">
+                        @ ${trade.price_usd.toLocaleString(undefined, { maximumFractionDigits: 6 })}/token
+                      </div>
+                    )}
                   </div>
                   
                   {/* Timestamp & Tx Link */}

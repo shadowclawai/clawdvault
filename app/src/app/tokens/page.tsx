@@ -1,21 +1,47 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { Token, TokenListResponse } from '@/lib/types';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { subscribeToAllTokens, unsubscribeChannel } from '@/lib/supabase-client';
+import { useWallet } from '@/contexts/WalletContext';
 
 type FilterTab = 'all' | 'trending' | 'new' | 'graduated';
 
 export default function TokensPage() {
+  const { connected, publicKey } = useWallet();
   const [tokens, setTokens] = useState<Token[]>([]);
   const [loading, setLoading] = useState(true);
   const [sort, setSort] = useState('created_at');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterTab>('all');
   const [solPrice, setSolPrice] = useState<number | null>(null);
+  const [walletBalances, setWalletBalances] = useState<Record<string, number>>({});
+  const [balancesLoading, setBalancesLoading] = useState(false);
+
+  // Fetch wallet token balances
+  const fetchWalletBalances = useCallback(async () => {
+    if (!connected || !publicKey) {
+      setWalletBalances({});
+      return;
+    }
+
+    setBalancesLoading(true);
+    try {
+      const res = await fetch(`/api/wallet/balances?wallet=${publicKey}`);
+      const data = await res.json();
+      if (data.success) {
+        setWalletBalances(data.balances || {});
+      }
+    } catch (err) {
+      console.warn('Failed to fetch wallet balances:', err);
+      setWalletBalances({});
+    } finally {
+      setBalancesLoading(false);
+    }
+  }, [connected, publicKey]);
 
   useEffect(() => {
     fetchTokens();
@@ -37,6 +63,11 @@ export default function TokensPage() {
     
     return () => unsubscribeChannel(channel);
   }, [sort]);
+
+  // Fetch wallet balances when connection changes
+  useEffect(() => {
+    fetchWalletBalances();
+  }, [fetchWalletBalances]);
 
   const fetchSolPrice = async () => {
     try {
@@ -147,6 +178,13 @@ export default function TokensPage() {
     if (!vol) return '--';
     if (vol >= 1000) return (vol / 1000).toFixed(1) + 'K';
     return vol.toFixed(2);
+  };
+
+  const formatNumber = (n: number) => {
+    if (n >= 1000000000) return (n / 1000000000).toFixed(2) + 'B';
+    if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(2) + 'K';
+    return n.toFixed(2);
   };
 
   const formatTimeAgo = (date: string) => {
@@ -336,6 +374,16 @@ export default function TokensPage() {
                     </div>
                     <div className="text-gray-500 text-sm">24h Vol</div>
                   </div>
+                  
+                  {/* User Balance - shown when wallet is connected and user has balance */}
+                  {connected && walletBalances[token.mint] > 0 && (
+                    <div className="text-right hidden md:block">
+                      <div className="text-green-400 font-mono">
+                        {formatNumber(walletBalances[token.mint])}
+                      </div>
+                      <div className="text-gray-500 text-sm">Your Balance</div>
+                    </div>
+                  )}
 
                   {/* Arrow */}
                   <div className="text-gray-600 group-hover:text-orange-400 transition">

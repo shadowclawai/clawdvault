@@ -76,69 +76,55 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Determine RPC based on network (devnet or mainnet)
-    const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'mainnet-beta';
-    const isDevnet = network === 'devnet';
-    
-    // Try multiple RPCs in case of rate limiting
-    const rpcUrls = [
-      process.env.NEXT_PUBLIC_RPC_URL,
-      isDevnet ? 'https://api.devnet.solana.com' : 'https://api.mainnet-beta.solana.com',
-      isDevnet ? null : 'https://solana-rpc.publicnode.com', // PublicNode only has mainnet
-    ].filter(Boolean) as string[];
-
     console.log(`[Wallet] Fetching balance for: ${publicKey}`);
     
-    for (const rpcUrl of rpcUrls) {
-      try {
-        console.log(`[Wallet] Trying RPC: ${rpcUrl}`);
-        
-        // Add timeout to prevent hanging
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
-        
-        const response = await fetch(rpcUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            id: 1,
-            method: 'getBalance',
-            params: [publicKey],
-          }),
-          signal: controller.signal,
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) {
-          console.warn(`[Wallet] RPC ${rpcUrl} returned ${response.status}`);
-          continue;
-        }
-        
-        const data = await response.json();
-        console.log(`[Wallet] RPC ${rpcUrl} response:`, data);
-        
-        if (data.result?.value !== undefined) {
-          // Convert lamports to SOL
-          const solBalance = data.result.value / 1e9;
-          console.log(`[Wallet] ✅ Balance fetched from ${rpcUrl}: ${solBalance} SOL`);
-          setBalance(solBalance);
-          return; // Success, stop trying
-        }
-        if (data.error) {
-          console.warn(`[Wallet] RPC error from ${rpcUrl}:`, data.error);
-        }
-      } catch (err: any) {
-        if (err.name === 'AbortError') {
-          console.warn(`[Wallet] RPC ${rpcUrl} timed out after 10s`);
-        } else {
-          console.warn(`[Wallet] Failed to fetch from ${rpcUrl}:`, err);
-        }
+    try {
+      // Use our secure RPC proxy (API key is server-side only)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
+      const response = await fetch('/api/rpc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'getBalance',
+          params: [publicKey],
+        }),
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        console.warn(`[Wallet] RPC proxy returned ${response.status}`);
+        setBalance(null);
+        return;
+      }
+      
+      const data = await response.json();
+      
+      if (data.result?.value !== undefined) {
+        // Convert lamports to SOL
+        const solBalance = data.result.value / 1e9;
+        console.log(`[Wallet] ✅ Balance fetched from proxy: ${solBalance} SOL`);
+        setBalance(solBalance);
+        return;
+      }
+      if (data.error) {
+        console.warn(`[Wallet] RPC proxy error:`, data.error);
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        console.warn(`[Wallet] RPC proxy timed out after 10s`);
+      } else {
+        console.warn(`[Wallet] Failed to fetch from proxy:`, err);
       }
     }
-    // If all RPCs failed, set balance to null (unknown) instead of 0
-    console.error('[Wallet] All RPCs failed to fetch balance');
+    
+    // Fallback to public RPC if proxy fails
+    console.warn('[Wallet] Proxy failed, trying fallback...');
     setBalance(null);
   }, [publicKey]);
 

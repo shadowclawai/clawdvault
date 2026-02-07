@@ -14,7 +14,7 @@ import { subscribeToTokenStats, unsubscribeChannel } from '@/lib/supabase-client
 
 export default function TokenPage({ params }: { params: Promise<{ mint: string }> }) {
   const { mint } = use(params);
-  const { connected, publicKey, balance: solBalance, connect, signTransaction } = useWallet();
+  const { connected, publicKey, balance: solBalance, connect, signTransaction, refreshBalance } = useWallet();
   const [anchorAvailable, setAnchorAvailable] = useState<boolean | null>(null);
   
   const [token, setToken] = useState<Token | null>(null);
@@ -91,6 +91,23 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
       }
     }
   }, [connected, publicKey, token, mint]);
+
+  // Refresh both SOL and token balances after trade
+  const refreshBalancesAfterTrade = useCallback(async () => {
+    // Refresh SOL balance immediately
+    await refreshBalance();
+    
+    // Wait a bit for blockchain to settle, then refresh token balance
+    // First attempt after 500ms
+    setTimeout(async () => {
+      await fetchTokenBalance();
+      
+      // Second attempt after 2 seconds to ensure finality
+      setTimeout(async () => {
+        await fetchTokenBalance();
+      }, 1500);
+    }, 500);
+  }, [refreshBalance, fetchTokenBalance]);
 
   const fetchHolders = useCallback(async (creator?: string) => {
     setHoldersLoading(true);
@@ -393,7 +410,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
           message: 'Trade executed via Jupiter!',
         });
         setAmount('');
-        fetchToken(); fetchOnChainStats(); fetchTokenBalance();
+        fetchToken(); fetchOnChainStats(); refreshBalancesAfterTrade();
         setChartKey(k => k + 1);
         return;
       }
@@ -468,7 +485,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
         });
         setAmount('');
         fetchToken(); fetchHolders(token?.creator); fetchOnChainStats();
-        fetchTokenBalance();
+        refreshBalancesAfterTrade();
         setChartKey(k => k + 1); // Force chart refresh
       } else {
         setTradeResult({ success: false, error: executeData.error || 'Trade execution failed' });

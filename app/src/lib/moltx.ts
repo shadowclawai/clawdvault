@@ -148,10 +148,13 @@ export async function announceTrade(params: {
   traderName?: string;
   newPrice?: number;
   marketCap?: number;
+  solPriceUsd?: number | null; // SOL price at trade time (from database)
 }): Promise<void> {
   const trader = params.traderName || shortenAddress(params.trader);
   const tokenUrl = `${CLAWDVAULT_URL}/token/${params.mint}`;
-  const solPrice = await getSolPrice();
+  
+  // Use provided SOL price from database, fallback to fetching if not available
+  const solPrice = params.solPriceUsd ?? await getSolPrice();
   
   const emoji = params.type === 'buy' ? '🟢' : '🔴';
   const action = params.type === 'buy' ? 'bought' : 'sold';

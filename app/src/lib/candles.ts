@@ -135,7 +135,8 @@ export async function updateCandles(
 export async function getCandles(
   tokenMint: string,
   interval: CandleInterval = '5m',
-  limit: number = 100
+  limit: number = 100,
+  to?: Date // Optional: fetch candles up to this time (inclusive)
 ): Promise<{
   time: number;
   open: number;
@@ -148,12 +149,14 @@ export async function getCandles(
     where: {
       tokenMint,
       interval,
+      ...(to && { bucketTime: { lte: to } }),
     },
-    orderBy: { bucketTime: 'asc' },
+    orderBy: { bucketTime: 'desc' },
     take: limit,
   });
-  
-  return candles.map((c) => ({
+
+  // Reverse to ascending order for charts
+  return candles.reverse().map((c) => ({
     time: Math.floor(c.bucketTime.getTime() / 1000), // Unix timestamp for Lightweight Charts
     open: Number(c.open),
     high: Number(c.high),
@@ -167,7 +170,8 @@ export async function getCandles(
 export async function getUsdCandles(
   tokenMint: string,
   interval: CandleInterval = '5m',
-  limit: number = 100
+  limit: number = 100,
+  to?: Date // Optional: fetch candles up to this time (inclusive)
 ): Promise<{
   time: number;
   open: number;
@@ -180,12 +184,14 @@ export async function getUsdCandles(
     where: {
       tokenMint,
       interval,
+      ...(to && { bucketTime: { lte: to } }),
     },
-    orderBy: { bucketTime: 'asc' },
+    orderBy: { bucketTime: 'desc' },
     take: limit,
   });
 
-  return candles.map((c) => {
+  // Reverse to ascending order for charts
+  return candles.reverse().map((c) => {
     // Use stored USD OHLC values if available
     const openUsd = c.openUsd ? Number(c.openUsd) : Number(c.open);
     const highUsd = c.highUsd ? Number(c.highUsd) : Number(c.high);

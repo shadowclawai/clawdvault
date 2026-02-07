@@ -246,26 +246,12 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
       const now = new Date();
       const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-      // Fetch candles from last 25 hours to find one closest to 24h ago
-      const agoRes = await fetch(`/api/candles?mint=${mint}&interval=1m&limit=1500&currency=usd`);
+      // Fetch most recent candle at or before 24h ago
+      const agoRes = await fetch(`/api/candles?mint=${mint}&interval=1m&limit=1&currency=usd&to=${oneDayAgo.toISOString()}`);
       const agoData = await agoRes.json();
-      console.log('[TokenPage] Fetched candles for 24h calc:', agoData.candles?.length);
+      console.log('[TokenPage] Fetched 24h ago candle:', agoData.candles?.[0]);
       if (agoData.candles?.length > 0) {
-        // Find candle closest to 24h ago (by time)
-        const targetTime = oneDayAgo.getTime() / 1000; // Convert to seconds
-        let closestCandle = agoData.candles[0];
-        let closestDiff = Math.abs(closestCandle.time - targetTime);
-
-        for (const candle of agoData.candles) {
-          const diff = Math.abs(candle.time - targetTime);
-          if (diff < closestDiff) {
-            closestDiff = diff;
-            closestCandle = candle;
-          }
-        }
-
-        console.log('[TokenPage] 24h ago candle found:', { closeUsd: closestCandle.close, time: new Date(closestCandle.time * 1000) });
-        setCandle24hAgo({ closeUsd: closestCandle.close });
+        setCandle24hAgo({ closeUsd: agoData.candles[0].close });
       }
     } catch (err) {
       console.warn('Failed to fetch 24h ago candle:', err);

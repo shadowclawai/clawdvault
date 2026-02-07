@@ -46,6 +46,8 @@ export interface Trade {
   sol_amount: number;
   token_amount: number;
   price_sol: number;
+  price_usd?: number; // Derived from sol_price_usd * price_sol
+  sol_price_usd?: number; // SOL price at trade time
   signature: string;
   created_at: string;
 }

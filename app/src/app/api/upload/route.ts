@@ -2,20 +2,37 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 
-// Initialize Supabase client with service role key for storage operations
-// Use SUPABASE_URL (server-side, Docker-compatible) not NEXT_PUBLIC_ (browser-side)
-const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+// Lazy-load Supabase client to avoid build-time errors
+let supabase: ReturnType<typeof createClient> | null = null;
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+function getSupabase() {
+  if (!supabase) {
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Supabase credentials not configured');
+    }
+    
+    supabase = createClient(supabaseUrl, supabaseServiceKey);
+  }
+  return supabase;
+}
+
+// Check if upload functionality is available (has required env vars)
+function isUploadEnabled() {
+  return !!(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL) && 
+         !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+}
 
 // Ensure bucket exists
 async function ensureBucket() {
-  const { data: buckets } = await supabase.storage.listBuckets();
+  const client = getSupabase();
+  const { data: buckets } = await client.storage.listBuckets();
   const bucketExists = buckets?.some(b => b.name === 'token-images');
   
   if (!bucketExists) {
-    const { error } = await supabase.storage.createBucket('token-images', {
+    const { error } = await client.storage.createBucket('token-images', {
       public: true,
       fileSizeLimit: 5 * 1024 * 1024, // 5MB
       allowedMimeTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
@@ -28,6 +45,13 @@ async function ensureBucket() {
 
 export async function POST(req: NextRequest) {
   try {
+    // Check if upload is enabled (skip in CI builds without credentials)
+    if (!isUploadEnabled()) {
+      return NextResponse.json({ 
+        error: 'Upload not configured' 
+      }, { status: 503 });
+    }
+    
     await ensureBucket();
 
     const formData = await req.formData();
@@ -61,7 +85,8 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(arrayBuffer);
 
     // Upload to Supabase Storage
-    const { data, error } = await supabase.storage
+    const client = getSupabase();
+    const { data, error } = await client.storage
       .from('token-images')
       .upload(filename, buffer, {
         contentType: file.type,

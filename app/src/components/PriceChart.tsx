@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { createChart, IChartApi, ISeriesApi, LineData, CandlestickData, ColorType } from 'lightweight-charts';
+import { createChart, IChartApi, ISeriesApi, LineData, CandlestickData, ColorType, CandlestickSeries, LineSeries } from 'lightweight-charts';
 import { subscribeToCandles, unsubscribeChannel } from '@/lib/supabase-client';
 
 interface Candle {
@@ -242,7 +242,7 @@ export default function PriceChart({
     const mcapMultiplier = totalSupply;
     
     if (chartType === 'candle') {
-      seriesRef.current = chartRef.current.addCandlestickSeries({
+      seriesRef.current = chartRef.current.addSeries(CandlestickSeries, {
         upColor: '#22c55e',
         downColor: '#ef4444',
         borderUpColor: '#22c55e',
@@ -266,7 +266,7 @@ export default function PriceChart({
         seriesRef.current.setData(candleData);
       }
     } else {
-      seriesRef.current = chartRef.current.addLineSeries({
+      seriesRef.current = chartRef.current.addSeries(LineSeries, {
         color: priceChange24h >= 0 ? '#22c55e' : '#ef4444',
         lineWidth: 2,
         crosshairMarkerVisible: true,

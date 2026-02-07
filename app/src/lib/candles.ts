@@ -1,5 +1,5 @@
 import { db } from './prisma';
-import { Decimal } from '@prisma/client/runtime/library';
+import { Decimal } from '../../generated/prisma/internal/prismaNamespace';
 import { getSolPrice } from './sol-price';
 
 type CandleInterval = '1m' | '5m' | '15m' | '1h' | '1d';

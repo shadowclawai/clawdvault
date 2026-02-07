@@ -3,83 +3,72 @@
  * Run: DATABASE_URL="..." npx ts-node scripts/fix-candles.ts
  */
 
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient, Prisma } from '../generated/prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
+
+// Create connection pool using DIRECT_URL for migrations/scripts
+const pool = new Pool({
+  connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL,
+});
+
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 const TOTAL_SUPPLY = 1_073_000_000;
 
 async function main() {
-  const prisma = new PrismaClient();
-
   console.log('🕯️ Fixing candle data...\n');
 
-  // Get all tokens with their current reserves
-  const tokens = await prisma.token.findMany();
-  
+  // Get all tokens
+  const tokens = await prisma.token.findMany({
+    select: {
+      id: true,
+      mint: true,
+      virtualSolReserves: true,
+      virtualTokenReserves: true,
+    },
+  });
+
+  console.log(`Found ${tokens.length} tokens\n`);
+
   for (const token of tokens) {
-    const virtualSol = Number(token.virtualSolReserves);
-    const virtualTokens = Number(token.virtualTokenReserves);
-    const correctPrice = virtualSol / virtualTokens;
+    console.log(`\n🔸 Token: ${token.mint}`);
     
-    console.log(`\n${token.symbol}: correct price = ${correctPrice.toFixed(12)}`);
+    // Get current price from reserves
+    const solReserves = Number(token.virtualSolReserves);
+    const tokenReserves = Number(token.virtualTokenReserves);
+    const currentPrice = solReserves / tokenReserves;
+    const currentMarketCap = currentPrice * TOTAL_SUPPLY;
     
-    // Get all candles for this token
-    const candles = await prisma.priceCandle.findMany({
+    console.log(`   Current price: ${currentPrice.toFixed(9)} SOL`);
+    console.log(`   Market cap: ${currentMarketCap.toFixed(2)} SOL`);
+
+    // Get latest candle
+    const latestCandle = await prisma.priceCandle.findFirst({
       where: { tokenMint: token.mint },
       orderBy: { bucketTime: 'desc' },
     });
-    
-    if (candles.length === 0) {
-      console.log(`  No candles found`);
-      continue;
-    }
-    
-    // Check if latest candle price is way off
-    const latestCandle = candles[0];
-    const candlePrice = Number(latestCandle.close);
-    const priceDiff = Math.abs(candlePrice - correctPrice) / correctPrice;
-    
-    console.log(`  Latest candle close: ${candlePrice.toFixed(12)}`);
-    console.log(`  Difference: ${(priceDiff * 100).toFixed(2)}%`);
-    
-    if (priceDiff > 0.01) { // More than 1% off
-      console.log(`  ⚠️ Price is off by more than 1%, fixing all candles...`);
+
+    if (latestCandle) {
+      const candlePrice = Number(latestCandle.close);
+      const diff = Math.abs(candlePrice - currentPrice) / currentPrice * 100;
       
-      // Get trades to rebuild candles
-      const trades = await prisma.trade.findMany({
-        where: { tokenMint: token.mint },
-        orderBy: { createdAt: 'asc' },
-      });
+      console.log(`   Latest candle: ${candlePrice.toFixed(9)} SOL (${latestCandle.interval} @ ${latestCandle.bucketTime.toISOString()})`);
       
-      if (trades.length === 0) {
-        // No trades, just update candle to correct price
-        await prisma.priceCandle.updateMany({
-          where: { tokenMint: token.mint },
-          data: {
-            open: correctPrice,
-            high: correctPrice,
-            low: correctPrice,
-            close: correctPrice,
-          },
-        });
-        console.log(`  ✅ Updated ${candles.length} candles to correct price (no trades)`);
+      if (diff > 5) {
+        console.log(`   ⚠️  Price mismatch: ${diff.toFixed(1)}% difference`);
       } else {
-        // Delete old candles and let them rebuild naturally
-        // Or just update latest to correct price
-        await prisma.priceCandle.updateMany({
-          where: { tokenMint: token.mint },
-          data: {
-            close: correctPrice,
-          },
-        });
-        console.log(`  ✅ Updated close price on ${candles.length} candles`);
+        console.log(`   ✓ Price matches within ${diff.toFixed(2)}%`);
       }
     } else {
-      console.log(`  ✓ Price is within 1%, skipping`);
+      console.log(`   ⚠️  No candles found`);
     }
   }
 
-  console.log('\n🕯️ Done!');
-  await prisma.$disconnect();
+  console.log('\n✅ Done!\n');
 }
 
-main().catch(console.error);
+main()
+  .catch(console.error)
+  .finally(() => prisma.$disconnect());

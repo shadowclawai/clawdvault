@@ -1,10 +1,18 @@
 /**
  * Rebuild candles from all trades
  */
-import { PrismaClient } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+import { PrismaClient } from '../generated/prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
+import { Decimal } from '../generated/prisma/internal/prismaNamespace';
 
-const prisma = new PrismaClient();
+// Create connection pool using DIRECT_URL for migrations/scripts
+const pool = new Pool({
+  connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL,
+});
+
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 type CandleInterval = '1m' | '5m' | '15m' | '1h' | '1d';
 

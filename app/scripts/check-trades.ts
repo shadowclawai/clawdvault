@@ -1,7 +1,15 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../generated/prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 
 async function main() {
-  const prisma = new PrismaClient();
+  // Create connection pool using DIRECT_URL for migrations/scripts
+const pool = new Pool({
+  connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL,
+});
+
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
   
   const token = await prisma.token.findFirst({ where: { symbol: 'CLAWDVAULT' }});
   
@@ -21,7 +29,13 @@ main();
 
 // Also check current reserves
 async function checkReserves() {
-  const prisma = new PrismaClient();
+  // Create connection pool using DIRECT_URL for migrations/scripts
+const pool = new Pool({
+  connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL,
+});
+
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
   const token = await prisma.token.findFirst({ where: { symbol: 'CLAWDVAULT' }});
   console.log('\nCurrent token reserves:');
   console.log('  virtualSol:', Number(token?.virtualSolReserves));

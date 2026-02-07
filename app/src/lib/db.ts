@@ -1,6 +1,6 @@
 import { db, calculateFees, INITIAL_VIRTUAL_SOL, INITIAL_VIRTUAL_TOKENS, GRADUATION_THRESHOLD_SOL } from './prisma';
 import { Token, Trade } from './types';
-import { Prisma, FeeType } from '@prisma/client';
+import { Prisma, FeeType } from '../../generated/prisma/client';
 import { getSolPrice } from './sol-price';
 
 // Helper to generate random mint (for testing without real Solana)

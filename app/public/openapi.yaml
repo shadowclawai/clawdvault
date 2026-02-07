@@ -516,6 +516,8 @@ paths:
         of truth for price display. Use the last candle's `close` for current price.
         
         Set `currency=usd` to get USD-denominated candles.
+        
+        Use `from` and `to` for date range queries (ISO 8601 format).
       parameters:
         - name: mint
           in: query
@@ -541,6 +543,20 @@ paths:
             enum: [sol, usd]
             default: sol
           description: Currency for OHLCV values (sol or usd)
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Start time (inclusive) - ISO 8601 timestamp
+          example: "2026-02-01T00:00:00Z"
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: End time (inclusive) - ISO 8601 timestamp
+          example: "2026-02-07T00:00:00Z"
       responses:
         '200':
           description: Candle data
@@ -556,6 +572,14 @@ paths:
                   currency:
                     type: string
                     enum: [sol, usd]
+                  from:
+                    type: string
+                    format: date-time
+                    description: Requested start time (if provided)
+                  to:
+                    type: string
+                    format: date-time
+                    description: Requested end time (if provided)
                   candles:
                     type: array
                     items:

@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     const interval = searchParams.get('interval') || '5m';
     const limit = parseInt(searchParams.get('limit') || '100');
     const currency = searchParams.get('currency') || 'sol'; // 'sol' or 'usd'
+    const fromParam = searchParams.get('from'); // ISO timestamp to fetch candles from
     const toParam = searchParams.get('to'); // ISO timestamp to fetch candles up to
 
     if (!mint) {
@@ -24,7 +25,8 @@ export async function GET(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Parse 'to' timestamp if provided
+    // Parse timestamps if provided
+    const from = fromParam ? new Date(fromParam) : undefined;
     const to = toParam ? new Date(toParam) : undefined;
 
     // Fetch candles in requested currency
@@ -33,19 +35,22 @@ export async function GET(request: NextRequest) {
           mint,
           interval as '1m' | '5m' | '15m' | '1h' | '1d',
           Math.min(limit, 1000),
-          to
+          to,
+          from
         )
       : await getCandles(
           mint,
           interval as '1m' | '5m' | '15m' | '1h' | '1d',
           Math.min(limit, 1000),
-          to
+          to,
+          from
         );
 
     return NextResponse.json({
       mint,
       interval,
       currency,
+      from: from?.toISOString(),
       to: to?.toISOString(),
       candles,
     });

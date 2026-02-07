@@ -136,7 +136,8 @@ export async function getCandles(
   tokenMint: string,
   interval: CandleInterval = '5m',
   limit: number = 100,
-  to?: Date // Optional: fetch candles up to this time (inclusive)
+  to?: Date, // Optional: fetch candles up to this time (inclusive)
+  from?: Date // Optional: fetch candles from this time (inclusive)
 ): Promise<{
   time: number;
   open: number;
@@ -149,7 +150,12 @@ export async function getCandles(
     where: {
       tokenMint,
       interval,
-      ...(to && { bucketTime: { lte: to } }),
+      ...(to || from ? {
+        bucketTime: {
+          ...(to && { lte: to }),
+          ...(from && { gte: from }),
+        }
+      } : {}),
     },
     orderBy: { bucketTime: 'desc' },
     take: limit,
@@ -171,7 +177,8 @@ export async function getUsdCandles(
   tokenMint: string,
   interval: CandleInterval = '5m',
   limit: number = 100,
-  to?: Date // Optional: fetch candles up to this time (inclusive)
+  to?: Date, // Optional: fetch candles up to this time (inclusive)
+  from?: Date // Optional: fetch candles from this time (inclusive)
 ): Promise<{
   time: number;
   open: number;
@@ -184,7 +191,12 @@ export async function getUsdCandles(
     where: {
       tokenMint,
       interval,
-      ...(to && { bucketTime: { lte: to } }),
+      ...(to || from ? {
+        bucketTime: {
+          ...(to && { lte: to }),
+          ...(from && { gte: from }),
+        }
+      } : {}),
     },
     orderBy: { bucketTime: 'desc' },
     take: limit,

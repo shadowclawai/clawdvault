@@ -154,23 +154,23 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Get Helius RPC URL from server-side env var (NEVER expose this to client)
-    const heliusUrl = process.env.SOLANA_RPC_URL;
+    // Get RPC URL from server-side env var (NEVER expose this to client)
+    const rpcUrl = process.env.SOLANA_RPC_URL;
     
-    if (!heliusUrl || !heliusUrl.includes('helius')) {
-      console.error('[RPC Proxy] Helius RPC URL not configured');
+    if (!rpcUrl) {
+      console.error('[RPC Proxy] SOLANA_RPC_URL not configured');
       return NextResponse.json(
         { jsonrpc: '2.0', error: { code: -32603, message: 'RPC provider not configured' }, id: body.id || null },
         { status: 500 }
       );
     }
     
-    // Forward request to Helius
+    // Forward request to RPC provider
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
     
     try {
-      const response = await fetch(heliusUrl, {
+      const response = await fetch(rpcUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -248,7 +248,7 @@ export async function syncTrades(options: {
           const newVirtualSol = Number(tradeEvent.virtualSolReserves) / 1e9;
           const newVirtualTokens = Number(tradeEvent.virtualTokenReserves) / 1e6;
           
-          await recordTrade({
+          const recordedTrade = await recordTrade({
             mint: tradeEvent.mint,
             type: tradeEvent.isBuy ? 'buy' : 'sell',
             wallet: tradeEvent.trader,
@@ -262,7 +262,7 @@ export async function syncTrades(options: {
             },
           });
           
-          // Post to Moltx (fire and forget)
+          // Post to Moltx (fire and forget) - use solPriceUsd from recorded trade
           announceTrade({
             mint: tradeEvent.mint,
             symbol: token.symbol,
@@ -273,6 +273,7 @@ export async function syncTrades(options: {
             trader: tradeEvent.trader,
             newPrice: newVirtualSol / newVirtualTokens,
             marketCap: (newVirtualSol / newVirtualTokens) * 1_000_000_000,
+            solPriceUsd: recordedTrade?.solPriceUsd ? Number(recordedTrade.solPriceUsd) : undefined,
           }).catch(err => console.error('[Moltx] Trade announce failed:', err));
           
           synced++;
@@ -304,7 +305,7 @@ export async function syncTrades(options: {
             console.log(`🎯 Found initial buy: ${initialBuy.solAmount} SOL`);
             
             try {
-              await recordTrade({
+              const recordedTrade = await recordTrade({
                 mint: createEvent.mint,
                 type: 'buy',
                 wallet: createEvent.creator,
@@ -314,7 +315,7 @@ export async function syncTrades(options: {
                 timestamp: new Date(Number(createEvent.timestamp) * 1000),
               });
               
-              // Post initial buy to Moltx
+              // Post initial buy to Moltx - use solPriceUsd from recorded trade
               announceTrade({
                 mint: createEvent.mint,
                 symbol: existingToken.symbol,
@@ -323,6 +324,7 @@ export async function syncTrades(options: {
                 solAmount: initialBuy.solAmount,
                 tokenAmount: initialBuy.tokenAmount,
                 trader: createEvent.creator,
+                solPriceUsd: recordedTrade?.solPriceUsd ? Number(recordedTrade.solPriceUsd) : undefined,
               }).catch(err => console.error('[Moltx] Initial buy announce failed:', err));
               
               synced++;

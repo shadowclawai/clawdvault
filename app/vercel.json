@@ -3,7 +3,7 @@
   "git": {
     "deploymentEnabled": {
       "main": false,
-      "preview": true
+      "preview": false
     }
   },
   "crons": [

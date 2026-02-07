@@ -84,6 +84,7 @@ export default function PriceChart({
   // Calculate ATH and OHLCV from visible candles (candles are USD price)
   const { athPrice, athTime, ohlcv } = useMemo(() => {
     // Find ATH from all candle highs (use 24h candles for broader view)
+    // Candles contain USD price per token
     const allCandles = candles24h.length > candles.length ? candles24h : candles;
     let maxPrice = 0;
     let maxTime: number | null = null;
@@ -95,9 +96,9 @@ export default function PriceChart({
       }
     });
     
-    // If no candles, use current price as fallback
-    if (maxPrice === 0 && currentPrice > 0) {
-      maxPrice = currentPrice;
+    // If no candles, use current market cap as fallback (convert back to price)
+    if (maxPrice === 0 && currentMarketCap > 0) {
+      maxPrice = currentMarketCap / totalSupply;
     }
     
     // OHLCV for the visible range (last candle)
@@ -119,7 +120,7 @@ export default function PriceChart({
         volume: totalVolume,
       }
     };
-  }, [candles, candles24h, currentPrice]);
+  }, [candles, candles24h, currentMarketCap, totalSupply]);
 
   // Effective market cap: last candle close * totalSupply (in USD)
   const effectiveMarketCap = useMemo(() => {

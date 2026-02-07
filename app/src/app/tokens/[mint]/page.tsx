@@ -260,21 +260,22 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
     }
   }, [token, amount, tradeType]);
 
-  // Calculate price impact using display price (on-chain → candles)
+  // Calculate price impact using on-chain price
   const priceImpact = useMemo(() => {
-    if (!token || !amount || parseFloat(amount) <= 0 || displayPrice <= 0) return 0;
+    const currentPrice = onChainStats?.price ?? 0;
+    if (!token || !amount || parseFloat(amount) <= 0 || currentPrice <= 0) return 0;
     const inputAmount = parseFloat(amount);
     
     if (tradeType === 'buy') {
-      const expectedTokens = inputAmount / displayPrice;
+      const expectedTokens = inputAmount / currentPrice;
       const actualTokens = estimatedOutput?.tokens || 0;
       return ((expectedTokens - actualTokens) / expectedTokens) * 100;
     } else {
-      const expectedSol = inputAmount * displayPrice;
+      const expectedSol = inputAmount * currentPrice;
       const actualSol = estimatedOutput?.sol || 0;
       return ((expectedSol - actualSol) / expectedSol) * 100;
     }
-  }, [token, amount, tradeType, estimatedOutput, displayPrice]);
+  }, [token, amount, tradeType, estimatedOutput, onChainStats?.price]);
 
   // Contract now caps sells at available liquidity, so max is just token balance
   const maxSellableTokens = tokenBalance;
@@ -823,10 +824,10 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400">Price</span>
                   <span className="text-white font-mono">
-                    {displayPrice > 0 ? formatPrice(displayPrice) : '--'} SOL
+                    {onChainStats?.price ? formatPrice(onChainStats.price) : '--'} SOL
                   </span>
                 </div>
-                {onChainStats?.priceUsd && displayPrice > 0 && (
+                {onChainStats?.priceUsd && onChainStats?.price && (
                   <div className="flex justify-between text-sm mt-1">
                     <span className="text-gray-400">USD</span>
                     <span className="text-green-400 font-mono">
